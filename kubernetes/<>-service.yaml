@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata: 
+  name: <>
+spec:
+  selector:
+    app: <>
+    project: valuphone
+  ports:
+    - name: data
+      protocol: TCP
+      port: <p>
