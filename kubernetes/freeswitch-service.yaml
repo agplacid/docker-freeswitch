@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata: 
+  name: freeswitch
+  labels:
+    app: freeswitch
+    role: sip-switch
+spec:
+  selector:
+    app: freeswitch
+    project: valuphone
+  ports:
+    - name: mod-kazoo
+      protocol: TCP
+      port: 8031
+  clusterIP: None

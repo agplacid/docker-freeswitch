@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: freeswitch
+spec:
+  replicas: 3
+  selector:
+    app: freeswitch
+    project: valuphone
+  template:
+    metadata:
+      name: freeswitch
+      labels:
+        app: freeswitch
+        project: valuphone
+    spec:
+      volumes:
+        - name: erlang-cookie-secret
+          secret:
+            secretName: erlang-cookie
+      containers:
+        - name: freeswitch
+          image: callforamerica/freeswitch
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: erlang-cookie-secret
+              readOnly: true
+              mountPath: /etc/secrets/erlang
+          ports:
+            - name: mod-kazoo
+              protocol: TCP
+              containerPort: 8031
+            - name: h-323-gatekeepr
+              protocol: UDP
+              containerPort: 1719
+            - name: h-323-signaling
+              protocol: TCP
+              containerPort: 1720
+            - name: stun-1
+              protocol: UDP
+              containerPort: 3478
+            - name: stun-2
+              protocol: UDP
+              containerPort: 3479 
+            - name: mlp-protocol
+              protocol: TCP
+              containerPort: 5002
+            - name: neighborhood
+              protocol: UDP
+              containerPort: 5003
+            - name: sip-uas-udp
+              protocol: UDP
+              containerPort: 5060
+            - name: sip-uas-tcp
+              protocol: TCP
+              containerPort: 5060
+            - name: sip-uas-nat-udp
+              protocol: UDP
+              containerPort: 5070
+            - name: sip-uas-nat-tcp
+              protocol: TCP
+              containerPort: 5070
+            - name: sip-uas-ext-udp
+              protocol: UDP
+              containerPort: 5080
+            - name: sip-uas-ext-tcp
+              protocol: TCP
+              containerPort: 5080
+            - name: esl
+              protocol: TCP
+              containerPort:  8021
+            - name: webrtc-1
+              protocol: TCP
+              containerPort:  5066
+            - name: webrtc-2
+              protocol: TCP
+              containerPort:  7443
+        - name: epmd
+          image: callforamerica/epmd
+        - name: dns
+          image: callforamerica/go-dnsmasq
+      restartPolicy: Always

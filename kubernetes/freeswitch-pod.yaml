@@ -22,10 +22,10 @@ spec:
         - name: mod-kazoo
           protocol: TCP
           containerPort: 8031
-        - name: h-323-gatekeeper
+        - name: h-323-gatekeepr
           protocol: UDP
           containerPort: 1719
-        - name: h-323-call-signaling
+        - name: h-323-signaling
           protocol: TCP
           containerPort: 1720
         - name: stun-1
@@ -34,10 +34,10 @@ spec:
         - name: stun-2
           protocol: UDP
           containerPort: 3479 
-        - name: mlp-protocol-server
+        - name: mlp-protocol
           protocol: TCP
           containerPort: 5002
-        - name: neighborhood-service
+        - name: neighborhood
           protocol: UDP
           containerPort: 5003
         - name: sip-uas-udp
@@ -52,19 +52,19 @@ spec:
         - name: sip-uas-nat-tcp
           protocol: TCP
           containerPort: 5070
-        - name: sip-uas-external-udp
+        - name: sip-uas-ext-udp
           protocol: UDP
           containerPort: 5080
-        - name: sip-uas-external-tcp
+        - name: sip-uas-ext-tcp
           protocol: TCP
           containerPort: 5080
         - name: esl
           protocol: TCP
           containerPort:  8021
-        - name: webrtc-websocket-1
+        - name: webrtc-1
           protocol: TCP
           containerPort:  5066
-        - name: webrtc-websocket-2
+        - name: webrtc-2
           protocol: TCP
           containerPort:  7443
     - name: epmd
