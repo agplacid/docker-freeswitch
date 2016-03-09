@@ -37,7 +37,7 @@ apk add $PACKAGES
 
 echo "Installing freeswitch ..."
 freeswitch_archive=/tmp/freeswitch.tar.gz
-curl -L -o $freeswitch_archive https://github.com/sip-li/kazoo-freeswitch-muslc/releases/download/1.4.26-kazoo-muslc/freeswitch-alpine.02-16-2016.tar.gz
+curl -L -o $freeswitch_archive https://github.com/sip-li/docker-freeswitch/releases/download/1.4.26-kazoo/freeswitch-alpine.02-16-2016.tar.gz
 tar xzvf $freeswitch_archive -C /
 rm -rf $freeswitch_archive
 
