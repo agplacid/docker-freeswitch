@@ -30,7 +30,7 @@ adduser -h /var/lib/freeswitch -H -g freeswitch -s /bin/ash -D -G freeswitch fre
 
 echo "Installing dependencies ..."
 apk update
-apk add git curl tar bash
+apk add git curl tar bash erlang
 
 apk add $PACKAGES
 
@@ -90,6 +90,21 @@ else
 fi
 EOF
 chmod +x /var/lib/freeswitch/bin/hostname-fix
+
+
+echo "Writing .bashrc ..."
+tee ~/.bashrc <<'EOF'
+#!/bin/bash
+
+if [ "$KUBERNETES_HOSTNAME_FIX" == true ]; then
+    if [ "$FREESWITCH_USE_LONGNAME" == true ]; then
+        export HOSTNAME=$(hostname -f)
+    else
+        export HOSTNAME=$(hostname)
+    fi
+fi
+EOF
+chown freeswitch:freeswitch ~/.bashrc
 
 
 echo "Setting Ownership & Permissions ..."

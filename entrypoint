@@ -83,4 +83,5 @@ link_erlang_cookie
 
 cd ~
     echo "Starting freeswitch ..."
-    su freeswitch -c 'exec freeswitch'
+    su freeswitch -c '/usr/bin/epmd -daemon'
+    su freeswitch -c 'exec /usr/bin/freeswitch'

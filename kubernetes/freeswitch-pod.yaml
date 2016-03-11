@@ -67,8 +67,6 @@ spec:
         - name: webrtc-2
           protocol: TCP
           containerPort:  7443
-    - name: epmd
-      image: callforamerica/epmd
     - name: dns
       image: callforamerica/go-dnsmasq
   restartPolicy: Always
