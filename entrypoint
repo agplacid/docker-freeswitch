@@ -43,6 +43,18 @@ get_etcd_port() {
     echo -n $PORT
 }
 
+if [ -n "$KUBERNETES_HOSTNAME_FIX" ]; then
+    echo "Applying kubernetes hostname fix"
+    ln -sf /var/lib/freeswitch/bin/hostname-fix /var/lib/freeswitch/bin/hostname
+    chown freeswitch:freeswitch /var/lib/freeswitch/bin/hostname
+    export HOSTNAME=$(/var/lib/freeswitch/bin/hostname-fix -f)
+    echo "127.0.0.1    $HOSTNAME" >> /etc/hosts
+
+    export FREESWITCH_MODKAZOO_NODENAME="freeswitch@${HOSTNAME}"
+    echo "Using Erlang Nodename: $FREESWITCH_MODKAZOO_NODENAME"
+fi
+
+
 echo "Rewriting /etc/freeswitch/autoload_configs/kazoo.conf.xml ..."
 tee /etc/freeswitch/autoload_configs/kazoo.conf.xml <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -68,13 +80,7 @@ sed -ir "s/\(<param name=\"rtp-start-port\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREES
 sed -ir "s/\(<param name=\"rtp-end-port\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREESWITCH_RTP_END_PORT}\3/" /etc/freeswitch/autoload_configs/console.conf.xml 
 
 
-if [ -n "$KUBERNETES_HOSTNAME_FIX" ]; then
-    echo "Applying kubernetes hostname fix"
-    ln -sf /var/lib/freeswitch/bin/hostname-fix /var/lib/freeswitch/bin/hostname
-    chown freeswitch:freeswitch /var/lib/freeswitch/bin/hostname
-    export HOSTNAME=$(/var/lib/freeswitch/bin/hostname-fix)
-    echo "127.0.0.1    $HOSTNAME" >> /etc/hosts
-fi
+
 
 
 echo "linking erlang cookie"
