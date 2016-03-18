@@ -11,7 +11,7 @@ LABEL   app.name="freeswitch" \
 
 ENV     TERM=xterm \
         HOME=/var/lib/freeswitch \
-        PATH=$HOME:$HOME/bin:$PATH
+        PATH=/var/lib/freeswitch/bin:$PATH
 
 COPY    setup.sh /tmp/setup.sh
 RUN     /tmp/setup.sh
