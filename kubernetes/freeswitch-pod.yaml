@@ -4,6 +4,7 @@ metadata:
   name: freeswitch
   labels:
     app: freeswitch
+    project: valuphone
     role: sip-switch
 spec:
   volumes:
@@ -67,6 +68,26 @@ spec:
         - name: webrtc-2
           protocol: TCP
           containerPort:  7443
+        - name: incoming
+          protocol: UDP
+          containerPort: 11000
+      resources:
+        requests:
+          cpu: 8
+          memory: 16G
+        # limits:
+        #   cpu: 
+        #   memory: 
+      readinessProbe:
+        exec:
+          command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
+        initialDelaySeconds: 30
+        timeoutSeconds: 5
+      livenessProbe:
+        exec:
+          command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
+        initialDelaySeconds: 30
+        timeoutSeconds: 5
     - name: dns
       image: callforamerica/go-dnsmasq
   restartPolicy: Always

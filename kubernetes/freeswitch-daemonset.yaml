@@ -10,6 +10,8 @@ spec:
         app: freeswitch
         project: valuphone
     spec:
+      nodeSelector: 
+        kubernetes.io/hostname: adeno.valuphone.com
       hostNetwork: true
       volumes:
         - name: erlang-cookie-secret
@@ -18,14 +20,14 @@ spec:
       containers:
         - name: freeswitch
           image: callforamerica/freeswitch
-          env:
-            - name: HOST_NETWORK
-              value: 'true'
           imagePullPolicy: Always
           volumeMounts:
             - name: erlang-cookie-secret
               readOnly: true
               mountPath: /etc/secrets/erlang
+          env:
+            - name: HOST_NETWORK
+              value: 'true'
           ports:
             - name: mod-kazoo
               protocol: TCP
@@ -48,12 +50,12 @@ spec:
             - name: neighborhood
               protocol: UDP
               containerPort: 5003
-            - name: sip-uas-udp
-              protocol: UDP
-              containerPort: 5060
-            - name: sip-uas-tcp
-              protocol: TCP
-              containerPort: 5060
+            # - name: sip-uas-udp
+            #   protocol: UDP
+            #   containerPort: 5060
+            # - name: sip-uas-tcp
+            #   protocol: TCP
+            #   containerPort: 5060
             - name: sip-uas-nat-udp
               protocol: UDP
               containerPort: 5070
@@ -74,7 +76,27 @@ spec:
               containerPort:  5066
             - name: webrtc-2
               protocol: TCP
-              containerPort:  7443      
-        # - name: dns
-        #   image: callforamerica/go-dnsmasq
+              containerPort:  7443
+            - name: incoming
+              protocol: UDP
+              containerPort: 11000
+          resources:
+            requests:
+              cpu: 4
+              memory: 8G
+            # limits:
+            #   cpu: 
+            #   memory: 
+          readinessProbe:
+            exec:
+              command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+        - name: dns
+          image: callforamerica/go-dnsmasq
       restartPolicy: Always
