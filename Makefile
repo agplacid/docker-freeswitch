@@ -1,6 +1,6 @@
 NS = vp
 NAME = freeswitch
-VERSION = 1.1.1
+VERSION = 1.6
 LOCAL_TAG = $(NS)/$(NAME):$(VERSION)
 
 REGISTRY = callforamerica

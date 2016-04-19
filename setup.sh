@@ -1,45 +1,35 @@
-#!/bin/ash
+#!/bin/bash
 
-PACKAGES="
-    libpq
-    libuuid
-    sqlite-dev
-    sqlite-libs
-    curl-dev
-    pcre-dev
-    speex-dev
-    speexdsp-dev
-    libedit-dev
-    ncurses-dev
-    zlib-dev
-    openssl-dev
-    libstdc++
-    libgcc
-    unixodbc-dev
-    libssh-dev
-    libtheora
-    libogg
-    libvorbis
-    libjpeg-turbo-dev"
-
-
-echo -e "Creating user and group for freeswitch ..."
-addgroup freeswitch
-adduser -h /var/lib/freeswitch -H -g freeswitch -s /bin/ash -D -G freeswitch freeswitch
-
+ERLANG_VERSION=18.2
 
 echo "Installing dependencies ..."
-apk update
-apk add git curl tar bash erlang
+apt-get update
+apt-get install -y curl git
 
-apk add $PACKAGES
+echo "Installing kerl ..."
+curl -o /usr/bin/kerl https://raw.githubusercontent.com/yrashk/kerl/master/kerl
+chmod a+x /usr/bin/kerl
+
+echo "Installing erlang $ERLANG_VERSION ..."
+kerl build $ERLANG_VERSION r${ERLANG_VERSION}
+kerl install r${ERLANG_VERSION} /usr/lib/erlang
+. /usr/lib/erlang/activate
+
+echo "Installing freeswitch gpg key ..."
+curl https://files.freeswitch.org/repo/deb/debian/freeswitch_archive_g0.pub | apt-key add - 
+
+echo "Installing freeswitch repo ..."
+echo "deb http://files.freeswitch.org/repo/deb/freeswitch-1.6/ jessie main" > /etc/apt/sources.list.d/freeswitch.list
+
+echo "Creating user and group for freeswitch ..."
+addgroup freeswitch
+# adduser -h /var/lib/freeswitch -H -g freeswitch -s /bin/ash -D -G freeswitch freeswitch
+adduser --home /var/lib/freeswitch --ingroup freeswitch --shell /bin/bash --gecos "" --disabled-password freeswitch
 
 
 echo "Installing freeswitch ..."
-freeswitch_archive=/tmp/freeswitch.tar.gz
-curl -L -o $freeswitch_archive https://github.com/sip-li/docker-freeswitch/releases/download/1.4.26-kazoo/freeswitch-alpine.02-16-2016.tar.gz
-tar xzvf $freeswitch_archive -C /
-rm -rf $freeswitch_archive
+apt-get update
+apt-get install -y freeswitch-all freeswitch-all-dbg gdb
 
 cd /tmp
     echo "Fetching kazoo-configs for freeswitch ..."
@@ -51,7 +41,6 @@ cd /tmp
 mkdir -p /var/lib/freeswitch/bin
 mkdir -p /var/run/freeswitch
 mkdir -p /tmp/freeswitch
-
 
 # disable mod_speex since it's not installed anyway and its deprecated. 
 sed -ir 's/\(<load module="mod_speex"\/>\)/<!--\1-->/' /etc/freeswitch/autoload_configs/modules.conf.xml
@@ -166,6 +155,6 @@ chown freeswitch:freeswitch /tmp/freeswitch
 
 
 echo "Cleaning up ..."
-apk del --purge git curl tar
-rm -rf /var/cache/apk/*
+
+apt-get clean
 rm -r /tmp/setup.sh

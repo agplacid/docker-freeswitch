@@ -1,13 +1,13 @@
-FROM alpine:3.3
+FROM debian:jessie
 
 MAINTAINER joe <joe@valuphone.com>
 
 LABEL   os="linux" \
-        os.distro="alpine" \
-        os.version="3.3"
+        os.distro="debian" \
+        os.version="jessie"
 
 LABEL   app.name="freeswitch" \
-        app.version="1.4.26-kazoo"
+        app.version="1.6"
 
 ENV     TERM=xterm \
         HOME=/var/lib/freeswitch \
@@ -18,8 +18,8 @@ RUN     /tmp/setup.sh
 
 COPY    entrypoint /usr/bin/entrypoint
 
-# ENV     KUBERNETES_HOSTNAME_FIX=true \
-#         FREESWITCH_USE_LONGNAME=true
+ENV     KUBERNETES_HOSTNAME_FIX=true \
+        FREESWITCH_USE_LONGNAME=true
 
 VOLUME  ["/var/lib/freeswitch"]
 

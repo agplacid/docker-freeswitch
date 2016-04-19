@@ -80,9 +80,6 @@ sed -ir "s/\(<param name=\"rtp-start-port\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREES
 sed -ir "s/\(<param name=\"rtp-end-port\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREESWITCH_RTP_END_PORT}\3/" /etc/freeswitch/autoload_configs/console.conf.xml 
 
 
-
-
-
 echo "linking erlang cookie"
 link_erlang_cookie
 

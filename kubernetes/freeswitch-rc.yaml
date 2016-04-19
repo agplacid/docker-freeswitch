@@ -7,12 +7,16 @@ spec:
   selector:
     app: freeswitch
     project: valuphone
+    version: 1.6
+    environment: production
   template:
     metadata:
       name: freeswitch
       labels:
         app: freeswitch
         project: valuphone
+        version: 1.6
+        environment: production
     spec:
       volumes:
         - name: erlang-cookie-secret
@@ -20,7 +24,7 @@ spec:
             secretName: erlang-cookie
       containers:
         - name: freeswitch
-          image: callforamerica/freeswitch
+          image: callforamerica/freeswitch:1.6
           imagePullPolicy: Always
           volumeMounts:
             - name: erlang-cookie-secret
@@ -83,8 +87,8 @@ spec:
               containerPort: 11000
           resources:
             requests:
-              cpu: 8
-              memory: 16G
+              cpu: 2
+              memory: 4G
             # limits:
             #   cpu: 
             #   memory: 
@@ -98,6 +102,6 @@ spec:
               command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
             initialDelaySeconds: 30
             timeoutSeconds: 5
-        - name: dns
-          image: callforamerica/go-dnsmasq
+        # - name: dns
+        #   image: callforamerica/go-dnsmasq
       restartPolicy: Always
