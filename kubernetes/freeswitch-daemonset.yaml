@@ -8,7 +8,7 @@ spec:
       name: freeswitch
       labels:
         app: freeswitch
-        version: 1.6
+        version: '1.6'
         environment: production
         project: valuphone
     spec:

@@ -6,7 +6,7 @@ metadata:
     app: freeswitch
     project: valuphone
     role: sip-switch
-    version: 1.6
+    version: '1.6'
     environment: production
 spec:
   volumes:

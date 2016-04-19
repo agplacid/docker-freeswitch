@@ -5,13 +5,13 @@ metadata:
   labels:
     app: freeswitch
     role: sip-switch
-    version: 1.6
+    version: '1.6'
     environment: production
 spec:
   selector:
     app: freeswitch
     project: valuphone
-    version: 1.6
+    version: '1.6'
     environment: production
   ports:
     - name: mod-kazoo

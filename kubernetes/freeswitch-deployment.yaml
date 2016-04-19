@@ -7,7 +7,7 @@ spec:
   selector:
     app: freeswitch
     project: valuphone
-    version: 1.6
+    version: '1.6'
     environment: production
   template:
     metadata:
@@ -15,7 +15,7 @@ spec:
       labels:
         app: freeswitch
         project: valuphone
-        version: 1.6
+        version: '1.6'
         environment: production
     spec:
       volumes:
