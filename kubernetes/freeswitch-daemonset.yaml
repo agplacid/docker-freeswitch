@@ -52,12 +52,6 @@ spec:
             - name: neighborhood
               protocol: UDP
               containerPort: 5003
-            # - name: sip-uas-udp
-            #   protocol: UDP
-            #   containerPort: 5060
-            # - name: sip-uas-tcp
-            #   protocol: TCP
-            #   containerPort: 5060
             - name: sip-uas-nat-udp
               protocol: UDP
               containerPort: 5070
@@ -99,6 +93,4 @@ spec:
               command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
             initialDelaySeconds: 30
             timeoutSeconds: 5
-        # - name: dns
-        #   image: callforamerica/go-dnsmasq
       restartPolicy: Always
