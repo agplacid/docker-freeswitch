@@ -33,6 +33,7 @@ link_erlang_cookie() {
         # chown freeswitch:freeswitch ~/.erlang.cookie
         # chmod 0600 ~/.erlang.cookie
     fi
+    echo "$cookie" > ~/.erlang.cookie
     chown freeswitch:freeswitch ~/.erlang.cookie
     chmod 0600 ~/.erlang.cookie
 }
