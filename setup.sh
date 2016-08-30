@@ -1,66 +1,109 @@
 #!/bin/bash
 
-ERLANG_VERSION=18.2
+set -e
+
+ARCH=x86_64
+
+
+echo "Creating user and group for freeswitch ..."
+addgroup freeswitch
+adduser --home ~ --ingroup freeswitch --shell /bin/bash --gecos "freeswitch user" --disabled-password freeswitch
+
+mkdir -p ~/bin
 
 echo "Installing dependencies ..."
-apt-get update
-apt-get install -y curl git
+apt-get update -y
+apt-get install -y \
+    locales \
+    curl \
+    vim \
+    git \
+    alien
 
-echo "Installing kerl ..."
-curl -o /usr/bin/kerl https://raw.githubusercontent.com/yrashk/kerl/master/kerl
-chmod a+x /usr/bin/kerl
 
-echo "Installing erlang $ERLANG_VERSION ..."
-kerl build $ERLANG_VERSION r${ERLANG_VERSION}
-kerl install r${ERLANG_VERSION} /usr/lib/erlang
-. /usr/lib/erlang/activate
+echo "Setting up locales ..."
+sed -ir '/en_US\.UTF-8 UTF-8/s/# //' /etc/locale.gen
+echo 'LANG="en_US.UTF-8"'> /etc/default/locale
+
+dpkg-reconfigure --frontend=noninteractive locales
+
+update-locale LC_ALL='en_US.UTF-8'
+update-locale LANG='en_US.UTF-8'
+update-locale LANGUAGE='en_US.UTF-8'
+
+
+
+echo "Installing erlang ..."
+curl -L -o /tmp/erlang.rpm \
+    https://github.com/rabbitmq/erlang-rpm/releases/download/v1.4.1/erlang-${ERLANG_VERSION}-1.el6.${ARCH}.rpm
+alien -i /tmp/erlang.rpm
+rm -r /tmp/erlang.rpm
+apt-get purge -y alien
+
 
 echo "Installing freeswitch gpg key ..."
 curl https://files.freeswitch.org/repo/deb/debian/freeswitch_archive_g0.pub | apt-key add - 
 
+
 echo "Installing freeswitch repo ..."
 echo "deb http://files.freeswitch.org/repo/deb/freeswitch-1.6/ jessie main" > /etc/apt/sources.list.d/freeswitch.list
-
-echo "Creating user and group for freeswitch ..."
-addgroup freeswitch
-# adduser -h /var/lib/freeswitch -H -g freeswitch -s /bin/ash -D -G freeswitch freeswitch
-adduser --home /var/lib/freeswitch --ingroup freeswitch --shell /bin/bash --gecos "" --disabled-password freeswitch
 
 
 echo "Installing freeswitch ..."
 apt-get update
-apt-get install -y freeswitch-all freeswitch-all-dbg gdb
 
+apt-get install -y \
+    freeswitch-meta-all \
+    freeswitch-mod-ilbc \
+    freeswitch-mod-shout \
+    freeswitch-mod-siren
+
+
+echo "Fetching kazoo-configs for freeswitch ..."
 cd /tmp
-    echo "Fetching kazoo-configs for freeswitch ..."
-    git clone https://github.com/2600hz/kazoo-configs
+    git clone https://github.com/2600hz/kazoo-configs -b 3.22
     cp -R kazoo-configs/freeswitch/* /etc/freeswitch/
     rm -rf kazoo-configs
     cd /
 
-mkdir -p /var/lib/freeswitch/bin
-mkdir -p /var/run/freeswitch
-mkdir -p /tmp/freeswitch
+echo "Creating directories ..."
+mkdir -p \
+    /var/run/freeswitch \
+    /var/log/freeswitch \
+    /var/cache/freeswitch
 
+
+echo "Disabling broken or unnecessary modules ..."
 # disable mod_speex since it's not installed anyway and its deprecated. 
-sed -ir 's/\(<load module="mod_speex"\/>\)/<!--\1-->/' /etc/freeswitch/autoload_configs/modules.conf.xml
+sed -ir '/mod_speex/s/\(<.*>\)/<!--\1-->/' \
+    /etc/freeswitch/autoload_configs/modules.conf.xml
 
 # disable mod_logfile since we're in docker
-sed -ir 's/\(<load module="mod_logfile"\/>\)/<!--\1-->/' /etc/freeswitch/autoload_configs/modules.conf.xml
+sed -ir '/mod_logfile/s/\(<.*>\)/<!--\1-->/' \
+    /etc/freeswitch/autoload_configs/modules.conf.xml
+
+# disable mod_celt since it doesn't seem to be around anymore
+sed -ir '/mod_celt/s/\(<.*>\)/<!--\1-->/' \
+    /etc/freeswitch/autoload_configs/modules.conf.xml
+
+
+echo "Enabling VP8 codec ..."
+sed -ir '/codecs=/s/\(OPUS,\)/\1VP8,/' \
+    /etc/freeswitch/freeswitch.xml
 
 
 echo "Writing Hostname override fix ..."
-tee /var/lib/freeswitch/bin/hostname-fix <<'EOF'
+tee ~/bin/hostname-fix <<'EOF'
 #!/bin/bash
 
 fqdn() {
-    local IP=$(/bin/hostname -i | sed 's/\./-/g')
+    local IP=$(/bin/hostname -i | cut -d' ' -f1 | sed 's/\./-/g')
     local DOMAIN='default.pod.cluster.local'
     echo "${IP}.${DOMAIN}"
 }
 
 short() {
-    local IP=$(/bin/hostname -i | sed 's/\./-/g')
+    local IP=$(/bin/hostname -i | cut -d' ' -f1 | sed 's/\./-/g')
     echo $IP
 }
 
@@ -78,7 +121,6 @@ else
     short
 fi
 EOF
-chmod +x /var/lib/freeswitch/bin/hostname-fix
 
 
 echo "Writing .bashrc ..."
@@ -86,72 +128,61 @@ tee ~/.bashrc <<'EOF'
 #!/bin/bash
 
 if [ "$KUBERNETES_HOSTNAME_FIX" == true ]; then
-    if [ "$FREESWITCH_USE_LONGNAME" == true ]; then
-        export HOSTNAME=$(hostname -f)
-    else
-        export HOSTNAME=$(hostname)
-    fi
+    ln -sf ~/bin/hostname-fix ~/bin/hostname
+    export HOSTNAME=$(hostname -f)
 fi
+
+TERM=xterm-256color
+COLS=80
+LINES=64
+
+c_rst='\[\e[0m\]'
+c_c='\[\e[36m\]'
+c_g='\[\e[92m\]'
+PS1="[${c_c}\u${c_rst}@\$(hostname) ${c_g}\W${c_rst}] $ "
+
+LS_COLORS='rs=0:di=38;5;27:ln=38;5;51:mh=44;38;5;15:pi=40;38;5;11:so=38;5;13:do=38;5;5:bd=48;5;232;38;5;11:cd=48;5;232;38;5;3:or=48;5;232;38;5;9:mi=05;48;5;232;38;5;15:su=48;5;196;38;5;15:sg=48;5;11;38;5;16:ca=48;5;196;38;5;226:tw=48;5;10;38;5;16:ow=48;5;10;38;5;21:st=48;5;21;38;5;15:ex=38;5;34:*.tar=38;5;9:*.tgz=38;5;9:*.arc=38;5;9:*.arj=38;5;9:*.taz=38;5;9:*.lha=38;5;9:*.lz4=38;5;9:*.lzh=38;5;9:*.lzma=38;5;9:*.tlz=38;5;9:*.txz=38;5;9:*.tzo=38;5;9:*.t7z=38;5;9:*.zip=38;5;9:*.z=38;5;9:*.Z=38;5;9:*.dz=38;5;9:*.gz=38;5;9:*.lrz=38;5;9:*.lz=38;5;9:*.lzo=38;5;9:*.xz=38;5;9:*.bz2=38;5;9:*.bz=38;5;9:*.tbz=38;5;9:*.tbz2=38;5;9:*.tz=38;5;9:*.deb=38;5;9:*.rpm=38;5;9:*.jar=38;5;9:*.war=38;5;9:*.ear=38;5;9:*.sar=38;5;9:*.rar=38;5;9:*.alz=38;5;9:*.ace=38;5;9:*.zoo=38;5;9:*.cpio=38;5;9:*.7z=38;5;9:*.rz=38;5;9:*.cab=38;5;9:*.jpg=38;5;13:*.jpeg=38;5;13:*.gif=38;5;13:*.bmp=38;5;13:*.pbm=38;5;13:*.pgm=38;5;13:*.ppm=38;5;13:*.tga=38;5;13:*.xbm=38;5;13:*.xpm=38;5;13:*.tif=38;5;13:*.tiff=38;5;13:*.png=38;5;13:*.svg=38;5;13:*.svgz=38;5;13:*.mng=38;5;13:*.pcx=38;5;13:*.mov=38;5;13:*.mpg=38;5;13:*.mpeg=38;5;13:*.m2v=38;5;13:*.mkv=38;5;13:*.webm=38;5;13:*.ogm=38;5;13:*.mp4=38;5;13:*.m4v=38;5;13:*.mp4v=38;5;13:*.vob=38;5;13:*.qt=38;5;13:*.nuv=38;5;13:*.wmv=38;5;13:*.asf=38;5;13:*.rm=38;5;13:*.rmvb=38;5;13:*.flc=38;5;13:*.avi=38;5;13:*.fli=38;5;13:*.flv=38;5;13:*.gl=38;5;13:*.dl=38;5;13:*.xcf=38;5;13:*.xwd=38;5;13:*.yuv=38;5;13:*.cgm=38;5;13:*.emf=38;5;13:*.axv=38;5;13:*.anx=38;5;13:*.ogv=38;5;13:*.ogx=38;5;13:*.aac=38;5;45:*.au=38;5;45:*.flac=38;5;45:*.mid=38;5;45:*.midi=38;5;45:*.mka=38;5;45:*.mp3=38;5;45:*.mpc=38;5;45:*.ogg=38;5;45:*.ra=38;5;45:*.wav=38;5;45:*.axa=38;5;45:*.oga=38;5;45:*.spx=38;5;45:*.xspf=38;5;45:'
+
+: ${LC_ALL:=en_US.utf8}
+: ${LANG:=en_US.utf8}
+: ${LANGUAGE:=en_US.utf8}
+
+export TERM COLS LINES LS_COLORS PS1 LC_ALL LANG LANGUAGE
+
+alias ls='ls --color'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias grep='grep --color=auto'
 EOF
-chown freeswitch:freeswitch ~/.bashrc
 
 
 echo "Setting Ownership & Permissions ..."
-# chown -R freeswitch:freeswitch /opt/freeswitch /var/lib/freeswitch /var/log/freeswitch
-# chmod -R 0775 /opt/freeswitch
+chown -R freeswitch:freeswitch \
+    ~ \
+    /opt/freeswitch \
+    /etc/freeswitch \
+    /usr/lib/freeswitch \
+    /var/lib/freeswitch \
+    /usr/share/freeswitch \
+    /var/run/freeswitch \
+    /var/log/freeswitch \
+    /var/cache/freeswitch
 
-# /etc/freeswitch
-chown -R freeswitch:freeswitch /etc/freeswitch
-find /etc/freeswitch -type f -exec chmod 0644 {} \;
-find /etc/freeswitch -type d -exec chmod 0755 {} \;
-
-# /etc/freeswitch/autoload_configs
-chown -R freeswitch:freeswitch /etc/freeswitch/autoload_configs
-find /etc/freeswitch/autoload_configs -type f -exec chmod 0644 {} \;
-find /etc/freeswitch/autoload_configs -type d -exec chmod 0755 {} \;
-
-# /etc/freeswitch/certs
-chown -R freeswitch:freeswitch /etc/freeswitch/certs
-find /etc/freeswitch/certs -type f -exec chmod 0600 {} \;
-find /etc/freeswitch/certs -type d -exec chmod 0770 {} \;
-
-# /etc/freeswitch/scripts
-chown -R freeswitch:freeswitch /etc/freeswitch/scripts
-find /etc/freeswitch/scripts -type f -exec chmod 0774 {} \;
-find /etc/freeswitch/scripts -type d -exec chmod 0775 {} \;
-
-# /etc/freeswitch/sip_profiles
-chown -R freeswitch:freeswitch /etc/freeswitch/sip_profiles
-find /etc/freeswitch/sip_profiles -type f -exec chmod 0644 {} \;
-find /etc/freeswitch/sip_profiles -type d -exec chmod 0755 {} \;
-
-# /usr/lib/freeswitch/mods
-chown -R root:root /usr/lib/freeswitch/mod
-find /usr/lib/freeswitch/mod -type f -exec chmod 0755 {} \;
-find /usr/lib/freeswitch/mod -type d -exec chmod 0755 {} \;
-
-# /var/lib/freeswitch
-chown -R freeswitch:freeswitch /var/lib/freeswitch
 find /var/lib/freeswitch -type f -exec chmod 0755 {} \;
 find /var/lib/freeswitch -type d -exec chmod 0755 {} \;
 
-# /var/run/freeswitch
-chown -R freeswitch:freeswitch /var/run/freeswitch
 find /var/run/freeswitch -type f -exec chmod 0600 {} \;
 find /var/run/freeswitch -type d -exec chmod 0750 {} \;
 
-# /var/log/freeswitch
-chown -R freeswitch:freeswitch /var/log/freeswitch
-find /var/log/freeswitch -type f -exec chmod 0664 {} \;
-find /var/log/freeswitch -type d -exec chmod 0775 {} \;
-
-# /usr/share/freeswitch
-chown -R freeswitch:freeswitch /usr/share/freeswitch
 find /usr/share/freeswitch -type f -exec chmod 0755 {} \;
 find /usr/share/freeswitch -type d -exec chmod 0755 {} \;
 
-# /tmp/freeswitch
-chown freeswitch:freeswitch /tmp/freeswitch
+find /var/log/freeswitch -type f -exec chmod 0664 {} \;
+find /var/log/freeswitch -type d -exec chmod 0775 {} \;
+
+chmod +x \
+    ~/.bashrc \
+    ~/bin/hostname-fix
 
 
 echo "Cleaning up ..."

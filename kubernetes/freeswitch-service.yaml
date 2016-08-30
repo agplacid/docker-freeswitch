@@ -2,19 +2,16 @@ kind: Service
 apiVersion: v1
 metadata: 
   name: freeswitch
-  labels:
-    app: freeswitch
-    role: sip-switch
-    version: '1.6'
-    environment: production
 spec:
+  clusterIP: None
   selector:
     app: freeswitch
     project: valuphone
-    version: '1.6'
     environment: production
   ports:
     - name: mod-kazoo
       protocol: TCP
-      port: 8031
-  clusterIP: None
+      containerPort:  8031
+    - name: sip
+      protocol: TCP
+      port: 11000

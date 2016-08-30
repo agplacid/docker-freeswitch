@@ -1,95 +1,98 @@
 #!/bin/bash
 
-FREESWITCH_LOG_LEVEL=${FREESWITCH_LOG_LEVEL:-info}
-
-ERLANG_NODE=${ERLANG_NODE:-freeswitch}
-
-FREESWITCH_MODKAZOO_LISTEN_IP=${FREESWITCH_MODKAZOO_LISTEN_IP:-0.0.0.0}
-FREESWITCH_MODKAZOO_LISTEN_PORT=${FREESWITCH_MODKAZOO_LISTEN_PORT:-8031}
-FREESWITCH_MODKAZOO_NODENAME=${FREESWITCH_MODKAZOO_NODENAME:-$ERLANG_NODE}
-FREESWITCH_RTP_START_PORT=${FREESWITCH_RTP_START_PORT:-16384}
-FREESWITCH_RTP_END_PORT=${FREESWITCH_RTP_END_PORT:-32768}
-
-FREESWITCH_USER=${FREESWITCH_USER:-freeswitch}
-FREESWITCH_GROUP=${FREESWITCH_GROUP:-daemon}
-FREESWITCH_ARGS="-c -u $FREESWITCH_USER -g $FREESWITCH_GROUP"
-FREESWITCH_PARAMS=""
-
-# Die on error
 set -e
 
-# FUNCTIONS
-link_erlang_cookie() {
-    if [ -f '/etc/secrets/erlang/cookie' ]; then
-        echo "Linking Erlang Cookie"
-        cookie=$(cat /etc/secrets/erlang/cookie)
-        # yes | cp -rf /etc/secrets/erlang/cookie ~/.erlang.cookie
-        # chown freeswitch:freeswitch ~/.erlang.cookie
-        # chmod 0600 ~/.erlang.cookie
-    else
-        echo "*** No Erlang Cookie Mounted! ***"
-        cookie=insecure-cookie
-        # echo insecure-cookie > ~/.erlang.cookie
-        # chown freeswitch:freeswitch ~/.erlang.cookie
-        # chmod 0600 ~/.erlang.cookie
-    fi
-    echo "$cookie" > ~/.erlang.cookie
-    chown freeswitch:freeswitch ~/.erlang.cookie
-    chmod 0600 ~/.erlang.cookie
-}
+. ~/.bashrc
 
-get_etcd_host() {
-    local HOST=$(dig +short +search etcd-client)
-    echo -n $HOST
-}
+: ${FREESWITCH_LOG_LEVEL:=info}
+: ${FREESWITCH_LOG_COLOR:=true}
 
-get_etcd_port() {
-    local PORT=$(dig +short +search SRV _etcd-client-port._tcp.etcd-client | awk '{print $3}')
-    echo -n $PORT
-}
+: ${FREESWITCH_RTP_START_PORT:=16384}
+: ${FREESWITCH_RTP_END_PORT:=32768}
 
-if [ -n "$KUBERNETES_HOSTNAME_FIX" ]; then
-    echo "Applying kubernetes hostname fix"
-    ln -sf /var/lib/freeswitch/bin/hostname-fix /var/lib/freeswitch/bin/hostname
-    chown freeswitch:freeswitch /var/lib/freeswitch/bin/hostname
-    export HOSTNAME=$(/var/lib/freeswitch/bin/hostname-fix -f)
-    echo "127.0.0.1    $HOSTNAME" >> /etc/hosts
+: ${MOD_KAZOO_LISTEN_IP:=0.0.0.0}
+# : ${MOD_KAZOO_NODENAME:=$(hostname -f)}
 
-    export FREESWITCH_MODKAZOO_NODENAME="freeswitch@${HOSTNAME}"
-    echo "Using Erlang Nodename: $FREESWITCH_MODKAZOO_NODENAME"
+# if [ "$KUBERNETES_HOSTNAME_FIX" == true ]; then
+#     echo "Applying kubernetes hostname fix ..."
+    
+#     if [ -z "$(cat /etc/hosts | grep $HOSTNAME)" ]; then
+#         echo "127.0.0.1    $(hostname -f)    $(hostname)" >> /etc/hosts
+#         echo "::1    $(hostname -f)    $(hostname)" >> /etc/hosts
+#         echo "$(hostname -i | head -n 1)    $(hostname -f)    $(hostname)" >> /etc/hosts
+#     fi
+
+#     echo "$HOSTNAME" > /etc/hostname
+    
+#     FREESWITCH_MODKAZOO_NODENAME="freeswitch@$HOSTNAME"
+
+#     echo -e "
+#     HOSTNAME: $HOSTNAME
+#     which: $(which hostname)
+#     Container IP: $(hostname -i)
+#     Container Host: $(hostname)
+#     Container FQDN: $(hostname -f)
+#     "
+# fi
+
+
+echo "Reading erlang cookie ..."
+if [ -f '/etc/secrets/erlang/cookie' ]; then
+    echo "Cookie secret mounted ..."
+    ERLANG_COOKIE=$(cat /etc/secrets/erlang/cookie)
+else
+    echo "*** No Erlang Cookie Mounted! ***"
+    ERLANG_COOKIE=insecure-cookie
 fi
+echo "$ERLANG_COOKIE" > ~/.erlang.cookie
 
 
-echo "Rewriting /etc/freeswitch/autoload_configs/kazoo.conf.xml ..."
-tee /etc/freeswitch/autoload_configs/kazoo.conf.xml <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration name="kazoo.conf" description="General purpose Erlang C-node produced to better fit the Kazoo project">
-    <settings>
-        <param name="listen-ip" value="${FREESWITCH_MODKAZOO_LISTEN_IP}" />
-        <param name="listen-port" value="${FREESWITCH_MODKAZOO_LISTEN_PORT}" />
-        <param name="cookie-file" value="/var/lib/freeswitch/.erlang.cookie" />
-        <!--<param name="cookie" value="${ERLANG_COOKIE}" />-->
-        <param name="shortname" value="false" />
-        <param name="nodename" value="${FREESWITCH_MODKAZOO_NODENAME}" />
-        <!--<param name="kazoo-var-prefix" value="ecallmgr" />-->
-        <!--<param name="compat-rel" value="12"/>-->
-    </settings>
-</configuration>
-EOF
+# echo "Rewriting kazoo.conf.xml ..."
+# tee /etc/freeswitch/autoload_configs/kazoo.conf.xml <<EOF
+# <?xml version="1.0" encoding="UTF-8"?>
+# <configuration name="kazoo.conf" description="General purpose Erlang C-node produced to better fit the Kazoo project">
+#     <settings>
+#         <param name="listen-ip" value="$MODKAZOO_LISTEN_IP" />
+#         <param name="listen-port" value="8031" />
+#         <param name="cookie-file" value="/opt/freeswitch/.erlang.cookie" />
+#         <!--<param name="cookie" value="$ERLANG_COOKIE" />-->
+#         <param name="shortname" value="false" />
+#         <param name="nodename" value="$MODKAZOO_NODENAME" />
+#         <!--<param name="kazoo-var-prefix" value="ecallmgr" />-->
+#         <!--<param name="compat-rel" value="12"/>-->
+#     </settings>
+# </configuration>
+# EOF
+
+
+echo "Rewriting kazoo.conf.xml ..."
+sed -ir "/listen-ip/s/0\.0\.0\.0/$MOD_KAZOO_LISTEN_IP/" \
+    /etc/freeswitch/autoload_configs/kazoo.conf.xml
+
+perl -i -pe 's/<!--(.*)(\/etc\/freeswitch\/autoload_configs\/\.erlang\.cookie)(.*)-->/$1\/opt\/freeswitch\/\.erlang\.cookie$3/' \
+    /etc/freeswitch/autoload_configs/kazoo.conf.xml
+
+sed -ir '/change_me/s/\(<.*>\)/<!--\1/' \
+    /etc/freeswitch/autoload_configs/kazoo.conf.xml
+
 
 echo "Setting CONSOLE_LOG_LEVEL: $FREESWITCH_LOG_LEVEL ..."
-sed -ir "s/\(<param name=\"loglevel\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREESWITCH_LOG_LEVEL}\3/" /etc/freeswitch/autoload_configs/console.conf.xml 
-
-echo "Setting RTP Port Range Min/Max"
-sed -ir "s/\(<param name=\"rtp-start-port\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREESWITCH_RTP_START_PORT}\3/" /etc/freeswitch/autoload_configs/console.conf.xml 
-sed -ir "s/\(<param name=\"rtp-end-port\" value=\"\)\(.*\)\(\"\/>\)/\\1${FREESWITCH_RTP_END_PORT}\3/" /etc/freeswitch/autoload_configs/console.conf.xml 
+sed -ir "/loglevel/s/info/$FREESWITCH_LOG_LEVEL/" /etc/freeswitch/autoload_configs/console.conf.xml
+sed -ir "/colorize/s/true/$FREESWITCH_LOG_COLOR/" /etc/freeswitch/autoload_configs/console.conf.xml
 
 
-echo "linking erlang cookie"
-link_erlang_cookie
+echo "Setting RTP Port Range Min/Max ..."
+sed -ir "/rtp-start-port/s/16384/$FREESWITCH_RTP_START_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml | grep rtp-start-port
+sed -ir "/rtp-end-port/s/32768/$FREESWITCH_RTP_END_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml
+
+
+echo "Ensuring permissions ..."
+chown -R freeswitch:freeswitch ~ /etc/freeswitch
+chown freeswitch:freeswitch ~/.erlang.cookie
+chmod 0600 ~/.erlang.cookie
 
 
 cd ~
     echo "Starting freeswitch ..."
     su freeswitch -c '/usr/bin/epmd -daemon'
-    su freeswitch -c 'exec /usr/bin/freeswitch'
+    exec /usr/bin/freeswitch -nonat -c -u freeswitch -g freeswitch 2>&1
