@@ -48,10 +48,10 @@ run:
 	@docker run -it --rm --name $(NAME)  --entrypoint bash $(LOCAL_TAG)
 
 launch:
-	@docker run -d --name $(NAME) -e "ENVIRONMENT=local" -e "KUBERNETES_HOSTNAME_FIX=true" -p "11000:11000" $(LOCAL_TAG)
+	@docker run -d --name $(NAME) $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -h freeswitch.default.pod.cluster.local -e "ENVIRONMENT=local" --network=local --net-alias freeswitch.default.pod.cluster.local $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h freeswitch.default.cluster.local --network=local --net-alias freeswitch.default.cluster.local $(LOCAL_TAG)
 
 create-network:
 	@docker network create -d bridge local
@@ -79,7 +79,7 @@ rmi:
 	@docker rmi $(REMOTE_TAG)
 
 kube-deploy-daemonset:
-	@kubectl create -f kubernetes/$(NAME)-daemonset.yaml --record
+	@kubectl create -f kubernetes/$(NAME)-daemonset.yaml
 
 kube-edit-daemonset:
 	@kubectl edit daemonset/$(NAME)

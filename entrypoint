@@ -75,15 +75,21 @@ perl -i -pe 's/<!--(.*)(\/etc\/freeswitch\/autoload_configs\/\.erlang\.cookie)(.
 sed -ir '/change_me/s/\(<.*>\)/<!--\1/' \
     /etc/freeswitch/autoload_configs/kazoo.conf.xml
 
+cat /etc/freeswitch/autoload_configs/kazoo.conf.xml
+
 
 echo "Setting CONSOLE_LOG_LEVEL: $FREESWITCH_LOG_LEVEL ..."
 sed -ir "/loglevel/s/info/$FREESWITCH_LOG_LEVEL/" /etc/freeswitch/autoload_configs/console.conf.xml
 sed -ir "/colorize/s/true/$FREESWITCH_LOG_COLOR/" /etc/freeswitch/autoload_configs/console.conf.xml
 
+cat /etc/freeswitch/autoload_configs/console.conf.xml
+
 
 echo "Setting RTP Port Range Min/Max ..."
-sed -ir "/rtp-start-port/s/16384/$FREESWITCH_RTP_START_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml | grep rtp-start-port
+sed -ir "/rtp-start-port/s/16384/$FREESWITCH_RTP_START_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml
 sed -ir "/rtp-end-port/s/32768/$FREESWITCH_RTP_END_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml
+
+cat /etc/freeswitch/autoload_configs/switch.conf.xml
 
 
 echo "Ensuring permissions ..."
