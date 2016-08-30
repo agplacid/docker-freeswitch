@@ -51,7 +51,7 @@ launch:
 	@docker run -d --name $(NAME) $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -h freeswitch.default.cluster.local --network=local --net-alias freeswitch.default.cluster.local $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h freeswitch.local -e "FREESWITCH_DISABLE_NAT_DETECTION=false" -e "FREESWITCH_RTP_START_PORT=16384" -e "FREESWITCH_RTP_END_PORT=16484" -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --network=local --net-alias freeswitch.local $(LOCAL_TAG)
 
 create-network:
 	@docker network create -d bridge local

@@ -92,45 +92,9 @@ sed -ir '/codecs=/s/\(OPUS,\)/\1VP8,/' \
     /etc/freeswitch/freeswitch.xml
 
 
-echo "Writing Hostname override fix ..."
-tee ~/bin/hostname-fix <<'EOF'
-#!/bin/bash
-
-fqdn() {
-    local IP=$(/bin/hostname -i | cut -d' ' -f1 | sed 's/\./-/g')
-    local DOMAIN='default.pod.cluster.local'
-    echo "${IP}.${DOMAIN}"
-}
-
-short() {
-    local IP=$(/bin/hostname -i | cut -d' ' -f1 | sed 's/\./-/g')
-    echo $IP
-}
-
-ip() {
-    /bin/hostname -i
-}
-
-if [[ "$1" == "-f" ]]; then
-    fqdn
-elif [[ "$1" == "-s" ]]; then
-    short
-elif [[ "$1" == "-i" ]]; then
-    ip
-else
-    short
-fi
-EOF
-
-
 echo "Writing .bashrc ..."
 tee ~/.bashrc <<'EOF'
 #!/bin/bash
-
-if [ "$KUBERNETES_HOSTNAME_FIX" == true ]; then
-    ln -sf ~/bin/hostname-fix ~/bin/hostname
-    export HOSTNAME=$(hostname -f)
-fi
 
 TERM=xterm-256color
 COLS=80
@@ -180,9 +144,7 @@ find /usr/share/freeswitch -type d -exec chmod 0755 {} \;
 find /var/log/freeswitch -type f -exec chmod 0664 {} \;
 find /var/log/freeswitch -type d -exec chmod 0775 {} \;
 
-chmod +x \
-    ~/.bashrc \
-    ~/bin/hostname-fix
+chmod +x ~/.bashrc
 
 
 echo "Cleaning up ..."
