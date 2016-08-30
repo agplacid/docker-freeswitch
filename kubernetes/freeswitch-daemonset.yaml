@@ -20,7 +20,7 @@ spec:
             secretName: erlang-cookie
       containers:
         - name: freeswitch
-          image: callforamerica/freeswitch:1.6
+          image: callforamerica/freeswitch
           imagePullPolicy: Always
           volumeMounts:
             - name: erlang-cookie-secret
