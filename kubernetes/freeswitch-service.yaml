@@ -11,7 +11,7 @@ spec:
   ports:
     - name: mod-kazoo
       protocol: TCP
-      containerPort:  8031
+      port:  8031
     - name: sip
       protocol: TCP
       port: 11000

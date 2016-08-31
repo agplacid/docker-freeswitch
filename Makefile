@@ -78,6 +78,9 @@ rmi:
 	@docker rmi $(LOCAL_TAG)
 	@docker rmi $(REMOTE_TAG)
 
+kube-deploy:
+	@$(MAKE) kube-deploy-daemonset
+
 kube-deploy-daemonset:
 	@kubectl create -f kubernetes/$(NAME)-daemonset.yaml
 
@@ -95,5 +98,23 @@ kube-delete-service:
 
 kube-replace-service:
 	@kubectl replace -f kubernetes/$(NAME)-service.yaml
+
+kube-logsf:
+	@kubectl logs -f $(shell kubectl get po | grep freeswitch | cut -d' ' -f1)
+
+kube-logsft:
+	@kubectl logs -f --tail=25 $(shell kubectl get po | grep freeswitch | cut -d' ' -f1)
+
+kube-shell:
+	@kubectl exec -ti $(shell kubectl get po | grep freeswitch | cut -d' ' -f1) -- bash
+
+freeswitch-erlang-status:
+	@kubectl exec $(shell kubectl get po | grep freeswitch | cut -d' ' -f1) -- fs_cli -x 'erlang status'
+
+freeswitch-sofia-status:
+	@kubectl exec $(shell kubectl get po | grep freeswitch | cut -d' ' -f1) -- fs_cli -x 'sofia status'
+
+freeswitch-reload:
+	@kubectl exec $(shell kubectl get po | grep freeswitch | cut -d' ' -f1) -- fs_cli -x 'reloadxml'
 
 default: build

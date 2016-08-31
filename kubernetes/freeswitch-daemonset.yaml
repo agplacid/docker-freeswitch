@@ -38,19 +38,19 @@ spec:
               containerPort: 11000
           resources:
             requests:
-              cpu: 4
-              memory: 4G
+              cpu: 8
+              memory: 8G
             # limits:
             #   cpu: 
             #   memory: 
           readinessProbe:
             exec:
               command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
-            initialDelaySeconds: 45
-            timeoutSeconds: 15
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
           livenessProbe:
             exec:
               command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
-            initialDelaySeconds: 45
-            timeoutSeconds: 15
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
       restartPolicy: Always
