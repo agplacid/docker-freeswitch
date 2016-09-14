@@ -51,7 +51,7 @@ launch:
 	@docker run -d --name $(NAME) $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -h freeswitch.local -e "FREESWITCH_DISABLE_NAT_DETECTION=false" -e "FREESWITCH_RTP_START_PORT=16384" -e "FREESWITCH_RTP_END_PORT=16484" -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --network=local --net-alias freeswitch.local $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h freeswitch.local -e "FREESWITCH_DISABLE_NAT_DETECTION=false" -e "FREESWITCH_RTP_START_PORT=16384" -e "FREESWITCH_RTP_END_PORT=16484" -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --network=local --net-alias freeswitch.local --cap-add sys_nice $(LOCAL_TAG)
 
 create-network:
 	@docker network create -d bridge local
@@ -79,7 +79,7 @@ rmi:
 	@docker rmi $(REMOTE_TAG)
 
 kube-deploy:
-	@$(MAKE) kube-deploy-daemonset
+	@kubectl create -f kubernetes/$(NAME)-deployment.yaml --record
 
 kube-deploy-daemonset:
 	@kubectl create -f kubernetes/$(NAME)-daemonset.yaml
@@ -116,5 +116,8 @@ freeswitch-sofia-status:
 
 freeswitch-reload:
 	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'reloadxml'
+
+freeswitch-http-clear-cache:
+	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'http_clear_cache' 
 
 default: build

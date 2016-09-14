@@ -1,18 +1,18 @@
 apiVersion: extensions/v1beta1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: freeswitch
 spec:
+  replicas: 2
   template:
     metadata:
       name: freeswitch
       labels:
         app: freeswitch
+        kazoo-app: whistle_apps
         project: valuphone
         environment: production
     spec:
-      nodeSelector: 
-        kubernetes.io/hostname: adeno.valuphone.com
       hostNetwork: true
       volumes:
         - name: erlang-cookie-secret
@@ -21,16 +21,18 @@ spec:
       containers:
         - name: freeswitch
           image: callforamerica/freeswitch
-          imagePullPolicy: Always
-          volumeMounts:
-            - name: erlang-cookie-secret
-              readOnly: true
-              mountPath: /etc/secrets/erlang
+          capabilities:
+            add:
+              - SYS_NICE
           env:
             - name: FREESWITCH_LOG_LEVEL
               value: info
             - name: FREESWITCH_DISABLE_NAT_DETECTION
               value: 'false'
+          volumeMounts:
+            - name: erlang-cookie-secret
+              readOnly: true
+              mountPath: /etc/secrets/erlang
           ports:
             - name: mod-kazoo
               protocol: TCP
@@ -39,12 +41,12 @@ spec:
               protocol: UDP
               containerPort: 11000
           resources:
-            requests:
+            requests: 
               cpu: 8
               memory: 8G
             # limits:
-            #   cpu: 
-            #   memory: 
+            #   cpu:
+            #   memory:
           readinessProbe:
             exec:
               command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
@@ -55,4 +57,5 @@ spec:
               command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
             initialDelaySeconds: 10
             timeoutSeconds: 10
+          imagePullPolicy: Always
       restartPolicy: Always

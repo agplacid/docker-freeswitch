@@ -13,6 +13,7 @@ set -e
 : ${MOD_KAZOO_LISTEN_IP:=0.0.0.0}
 
 : ${FREESWITCH_DISABLE_NAT_DETECTION:=true}
+: ${FREESWITCH_FIRE_MESSAGE_EVENTS:=true}
 
 
 echo "Reading erlang cookie ..."
@@ -52,6 +53,18 @@ sed -ir "/rtp-end-port/s/32768/$FREESWITCH_RTP_END_PORT/" /etc/freeswitch/autolo
 
 cat /etc/freeswitch/autoload_configs/switch.conf.xml
 
+
+if [[ $FREESWITCH_FIRE_MESSAGE_EVENTS = true ]]
+    echo "Enabling fire_message_events ..."
+then
+    sed -ir '/in-dialog-chat/a \
+            \
+            <!-- MESSAGES --> \
+            <param name="fire-message-events" value="true"/>' \
+            /etc/freeswitch/sip_profiles/sipinterface_1.xml
+
+    cat /etc/freeswitch/sip_profiles/sipinterface_1.xml
+fi
 
 echo "Ensuring permissions ..."
 chown -R freeswitch:freeswitch ~ /etc/freeswitch
