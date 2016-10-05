@@ -1,31 +1,26 @@
-FROM debian:jessie
+FROM callforamerica/debian
 
 MAINTAINER joe <joe@valuphone.com>
 
-LABEL   os="linux" \
-        os.distro="debian" \
-        os.version="jessie"
-
 LABEL   lang.name="erlang" \
-        lang.version="19.0.4"
+        lang.version="19.1"
 
 LABEL   app.name="freeswitch" \
         app.version="1.6"
 
-ENV     ERLANG_VERSION=19.0.4 \
+ENV     ERLANG_VERSION=19.0 \
         FREESWITCH_VERSION=1.6
 
 ENV     HOME=/opt/freeswitch
-ENV     PATH=$HOME/bin:$PATH
 
-COPY    setup.sh /tmp/setup.sh
-RUN     /tmp/setup.sh
+COPY    build.sh /tmp/build.sh
+RUN     /tmp/build.sh
 
-COPY    entrypoint /usr/bin/entrypoint
+COPY    entrypoint /entrypoint
 
 ENV     FREESWITCH_LOG_LEVEL=info
 
-VOLUME  ["/var/lib/freeswitch", "/var/cache/freeswitch", "/usr/share/freeswitch"]
+VOLUME  ["/var/lib/freeswitch", "/usr/share/freeswitch/http_cache"]
 
 EXPOSE  4369 8021 8031 11000 16384-24576/udp
 
@@ -33,4 +28,5 @@ EXPOSE  4369 8021 8031 11000 16384-24576/udp
 
 WORKDIR /opt/freeswitch
 
-CMD     ["/usr/bin/entrypoint"]
+ENTRYPOINT  ["/dumb-init", "--"]
+CMD         ["/entrypoint"]

@@ -22,14 +22,17 @@ checkout:
 	@git checkout $(BUILD_BRANCH)
 
 build:
-	@docker build -t $(LOCAL_TAG) --rm .
-	$(MAKE) tag
+	@docker build -t $(LOCAL_TAG) --force-rm .
+	@$(MAKE) tag
+	@$(MAKE) dclean
 
 tag:
 	@docker tag $(LOCAL_TAG) $(REMOTE_TAG)
 
 rebuild:
-	@docker build -t $(LOCAL_TAG) --rm --no-cache .
+	@docker build -t $(LOCAL_TAG) --force-rm --no-cache .
+	@$(MAKE) tag
+	@$(MAKE) dclean
 
 test:
 	@rspec ./tests/*.rb
@@ -45,16 +48,23 @@ shell:
 	@docker exec -ti $(NAME) /bin/bash
 
 run:
-	@docker run -it --rm --name $(NAME)  --entrypoint bash $(LOCAL_TAG)
+	@docker run -it --rm --name $(NAME) --entrypoint bash $(LOCAL_TAG)
 
 launch:
-	@docker run -d --name $(NAME) $(LOCAL_TAG)
+	@docker run -d --name $(NAME) --tmpfs /usr/share/freeswitch/http_cache:size=512M --tmpfs /var/lib/freeswitch:size=512M --cap-add sys_nice --privileged $(LOCAL_TAG)
+
+launch-fast:
+	@docker run -d --name $(NAME) -e "FREESWITCH_SKIP_SOUNDS=true" --tmpfs /usr/share/freeswitch/http_cache:size=512M --tmpfs /var/lib/freeswitch:size=512M --cap-add sys_nice --privileged $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -h freeswitch.local -e "FREESWITCH_DISABLE_NAT_DETECTION=false" -e "FREESWITCH_RTP_START_PORT=16384" -e "FREESWITCH_RTP_END_PORT=16484" -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --network=local --net-alias freeswitch.local --cap-add sys_nice $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h freeswitch.local -e "FREESWITCH_SKIP_SOUNDS=true" -e "FREESWITCH_DISABLE_NAT_DETECTION=false" -e "FREESWITCH_RTP_START_PORT=16384" -e "FREESWITCH_RTP_END_PORT=16484" -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --tmpfs /usr/share/freeswitch/http_cache:size=512M --tmpfs /usr/share/freeswitch/http_cache:size=512M --cap-add sys_nice --privileged --network=local --net-alias freeswitch.local $(LOCAL_TAG)
 
 create-network:
 	@docker network create -d bridge local
+
+proxies-up:
+	@cd ../docker-aptcacher-ng && make remote-persist
+	@cd ../docker-squid && make remote-persist
 
 logs:
 	@docker logs $(NAME)
@@ -74,9 +84,17 @@ stop:
 rm:
 	@docker rm $(NAME)
 
+rmf:
+	@docker rm -f $(NAME)
+	
 rmi:
 	@docker rmi $(LOCAL_TAG)
 	@docker rmi $(REMOTE_TAG)
+
+dclean:
+	@-docker ps -aq | gxargs -I{} docker rm {} 2> /dev/null || true
+	@-docker images -f dangling=true -q | xargs docker rmi
+	@-docker volume ls -f dangling=true -q | xargs docker volume rm
 
 kube-deploy:
 	@kubectl create -f kubernetes/$(NAME)-deployment.yaml --record

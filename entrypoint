@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/bin/bash -l
 
 set -e
 
-. ~/.bashrc
+app=freeswitch
+user=$app
 
 : ${FREESWITCH_LOG_LEVEL:=info}
 : ${FREESWITCH_LOG_COLOR:=true}
@@ -14,62 +15,92 @@ set -e
 
 : ${FREESWITCH_DISABLE_NAT_DETECTION:=true}
 : ${FREESWITCH_FIRE_MESSAGE_EVENTS:=true}
+: ${FREESWITCH_SKIP_SOUNDS:=false}
 
 
-echo "Reading erlang cookie ..."
-if [ -f '/etc/secrets/erlang/cookie' ]; then
-    echo "Cookie secret mounted ..."
-    ERLANG_COOKIE=$(cat /etc/secrets/erlang/cookie)
-else
-    echo "*** No Erlang Cookie Mounted! ***"
-    ERLANG_COOKIE=insecure-cookie
+# If the sound and music packages are present, lets install and
+# remove them now
+if [[ ! $FREESWITCH_SKIP_SOUNDS = true ]]
+then
+    if ls /tmp | grep --silent freeswitch-sounds
+    then
+        cd /tmp && dpkg -i freeswitch-sounds* && rm -f freeswitch-sounds*
+    fi
+
+    if ls /tmp | grep --silent freeswitch-music
+    then
+        cd /tmp && dpkg -i freeswitch-music* && rm -f freeswitch-music*
+    fi
 fi
-echo "$ERLANG_COOKIE" > ~/.erlang.cookie
+
+
+echo "Writing erlang cookie ..." 
+write-erlang-cookie
 
 
 echo "Rewriting kazoo.conf.xml ..."
-sed -ir "/listen-ip/s/0\.0\.0\.0/$MOD_KAZOO_LISTEN_IP/" \
-    /etc/freeswitch/autoload_configs/kazoo.conf.xml
-
-perl -i -pe 's/<!--(.*)(\/etc\/freeswitch\/autoload_configs\/\.erlang\.cookie)(.*)-->/$1\/opt\/freeswitch\/\.erlang\.cookie$3/' \
-    /etc/freeswitch/autoload_configs/kazoo.conf.xml
-
-sed -ir '/change_me/s/\(<.*>\)/<!--\1/' \
-    /etc/freeswitch/autoload_configs/kazoo.conf.xml
-
-cat /etc/freeswitch/autoload_configs/kazoo.conf.xml
-
-
-echo "Setting CONSOLE_LOG_LEVEL: $FREESWITCH_LOG_LEVEL ..."
-sed -ir "/loglevel/s/info/$FREESWITCH_LOG_LEVEL/" /etc/freeswitch/autoload_configs/console.conf.xml
-sed -ir "/colorize/s/true/$FREESWITCH_LOG_COLOR/" /etc/freeswitch/autoload_configs/console.conf.xml
-
-cat /etc/freeswitch/autoload_configs/console.conf.xml
+tee /etc/freeswitch/autoload_configs/kazoo.conf.xml <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration name="kazoo.conf" description="General purpose Erlang C-node produced to better fit the Kazoo project">
+    <settings>
+        <param name="listen-ip" value="$MOD_KAZOO_LISTEN_IP" />
+        <param name="listen-port" value="8031" />
+        <param name="cookie-file" value="$HOME/.erlang.cookie" />
+        <!--<param name="cookie" value="change_me" />-->
+        <param name="shortname" value="false" />
+        <param name="nodename" value="freeswitch" />
+        <!--<param name="kazoo-var-prefix" value="ecallmgr" />-->
+        <!--<param name="compat-rel" value="12"/> -->
+    </settings>
+</configuration>
+EOF
 
 
-echo "Setting RTP Port Range Min/Max ..."
-sed -ir "/rtp-start-port/s/16384/$FREESWITCH_RTP_START_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml
-sed -ir "/rtp-end-port/s/32768/$FREESWITCH_RTP_END_PORT/" /etc/freeswitch/autoload_configs/switch.conf.xml
+echo "Setting $app log level $FREESWITCH_LOG_LEVEL ..."
+tee /etc/freeswitch/autoload_configs/console.conf.xml <<EOF
+<configuration name="console.conf" description="Console Logger">
+    <settings>
+        <param name="colorize" value="$FREESWITCH_LOG_COLOR"/>
+        <param name="loglevel" value="${FREESWITCH_LOG_LEVEL,,}"/>
+    </settings>
+    <mappings>
+        <map name="all" value="console,debug,info,notice,warning,err,crit,alert"/>
+    </mappings>
+</configuration>
+EOF
 
-cat /etc/freeswitch/autoload_configs/switch.conf.xml
+
+echo "Setting RTP Port Range Min/Max on switch.conf.xml ..."
+sed -ir "/rtp-start-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_START_PORT\"/" /etc/freeswitch/autoload_configs/switch.conf.xml
+sed -ir "/rtp-end-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_END_PORT\"/" /etc/freeswitch/autoload_configs/switch.conf.xml
+
+cat /etc/freeswitch/autoload_configs/switch.conf.xml | grep 'rtp-'
+
 
 
 if [[ $FREESWITCH_FIRE_MESSAGE_EVENTS = true ]]
-    echo "Enabling fire_message_events ..."
 then
-    sed -ir '/in-dialog-chat/a \
+    if ! grep --silent fire-message-events /etc/freeswitch/sip_profiles/sipinterface_1.xml
+    then
+        echo "Enabling fire_message_events in sipinterface_1.xml ..."
+        sed -ir '/in-dialog-chat/a \
             \
             <!-- MESSAGES --> \
             <param name="fire-message-events" value="true"/>' \
             /etc/freeswitch/sip_profiles/sipinterface_1.xml
 
-    cat /etc/freeswitch/sip_profiles/sipinterface_1.xml
+        cat /etc/freeswitch/sip_profiles/sipinterface_1.xml
+    fi
 fi
 
+
+echo "Ensuring volume contained dirs ..."
+mkdir -p /var/lib/freeswitch{db,recordings,storage}
+
+
 echo "Ensuring permissions ..."
-chown -R freeswitch:freeswitch ~ /etc/freeswitch
-chown freeswitch:freeswitch ~/.erlang.cookie
-chmod 0600 ~/.erlang.cookie
+chown -R $user:$user ~ /etc/freeswitch /var/lib/freeswitch
+chmod -R 755 /var/lib/freeswitch
 
 
 echo "Building arguments ..."
@@ -77,6 +108,6 @@ echo "Building arguments ..."
 
 
 cd ~
-    echo "Starting freeswitch ..."
-    su freeswitch -c '/usr/bin/epmd -daemon'
-    exec /usr/bin/freeswitch -c -u freeswitch -g freeswitch $nonat_args 2>&1
+    echo "Starting $app ..."
+    gosu $user epmd -daemon
+    exec freeswitch -c -u $user -g $user $nonat_args 2>&1

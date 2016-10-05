@@ -3,59 +3,90 @@ kind: Deployment
 metadata:
   name: freeswitch
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       name: freeswitch
       labels:
         app: freeswitch
-        kazoo-app: whistle_apps
         project: valuphone
         environment: production
     spec:
       hostNetwork: true
-      volumes:
-        - name: erlang-cookie-secret
-          secret:
-            secretName: erlang-cookie
+      nodeSelector: 
+        kubernetes.io/hostname: adeno.valuphone.com
       containers:
-        - name: freeswitch
-          image: callforamerica/freeswitch
-          capabilities:
-            add:
-              - SYS_NICE
-          env:
-            - name: FREESWITCH_LOG_LEVEL
-              value: info
-            - name: FREESWITCH_DISABLE_NAT_DETECTION
-              value: 'false'
-          volumeMounts:
-            - name: erlang-cookie-secret
-              readOnly: true
-              mountPath: /etc/secrets/erlang
-          ports:
-            - name: mod-kazoo
-              protocol: TCP
-              containerPort:  8031
-            - name: sip
-              protocol: UDP
-              containerPort: 11000
-          resources:
-            requests: 
-              cpu: 8
-              memory: 8G
-            # limits:
-            #   cpu:
-            #   memory:
-          readinessProbe:
-            exec:
-              command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
-            initialDelaySeconds: 10
-            timeoutSeconds: 10
-          livenessProbe:
-            exec:
-              command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
-            initialDelaySeconds: 10
-            timeoutSeconds: 10
-          imagePullPolicy: Always
+      - name: freeswitch
+        image: callforamerica/freeswitch
+        capabilities:
+          add:
+          - SYS_NICE
+        env:
+        - name: FREESWITCH_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.log-level
+        - name: FREESWITCH_LOG_COLOR
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.log-color
+        - name: FREESWITCH_RTP_START_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.rtp-start-port
+        - name: FREESWITCH_RTP_END_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.rtp-end-port
+        - name: FREESWITCH_DISABLE_NAT_DETECTION
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.disable-nat-detection
+        - name: FREESWITCH_FIRE_MESSAGE_EVENTS
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.fire-message-events
+        - name: ERLANG_COOKIE
+          valueFrom:
+            secretKeyRef:
+              name: erlang-cookie
+              key: erlang.cookie
+        volumeMounts:
+        - name: var-lib-ramfs
+          mountPath: /var/lib/freeswitch/db
+        ports:
+        - name: mod-kazoo
+          protocol: TCP
+          containerPort:  8031
+        - name: sip
+          protocol: UDP
+          containerPort: 11000
+        resources:
+          requests: 
+            cpu: 8
+            memory: 8Gi
+          limits:
+            cpu: 8
+            memory: 8Gi
+        readinessProbe:
+          exec:
+            command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        livenessProbe:
+          exec:
+            command: ["fs_cli", "-x", "status", "|", "grep", "-q", "^UP"]
+          initialDelaySeconds: 45
+          timeoutSeconds: 10
+        imagePullPolicy: Always
+      volumes:
+      - name: var-lib-ramfs
+        emptyDir:
+          medium: Memory
       restartPolicy: Always
