@@ -9,6 +9,9 @@ spec:
     project: valuphone
     environment: production
   ports:
+    - name: event-socket
+      protocol: TCP
+      port:  8021
     - name: mod-kazoo
       protocol: TCP
       port:  8031

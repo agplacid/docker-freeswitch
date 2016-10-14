@@ -52,6 +52,21 @@ spec:
             configMapKeyRef:
               name: freeswitch-config
               key: freeswitch.fire-message-events
+        - name: FREESWITCH_EVENT_SOCKET_LISTEN_IP
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.event-socket-listen-ip
+        - name: FREESWITCH_ACL_CLUSTER_ALLOW_CIDR
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch-config
+              key: freeswitch.acl-cluster-allow-cidr
+        - name: FREESWITCH_EVENT_SOCKET_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: freeswitch-creds
+              key: freeswitch.event-socket.password
         - name: ERLANG_COOKIE
           valueFrom:
             secretKeyRef:

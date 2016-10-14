@@ -3,7 +3,7 @@
 set -e
 
 app=freeswitch
-user=freeswitch
+user=$app
 
 
 # Use local cache proxy if it can be reached, else nothing.
@@ -11,7 +11,7 @@ eval $(detect-proxy enable)
 
 
 echo "Creating user and group for $app ..."
-useradd --home-dir ~ --create-home --shell=/bin/bash --user-group $user
+useradd --system --home-dir ~ --create-home --shell /bin/false --user-group $user
 
 
 echo "Installing erlang repo ..."
@@ -25,7 +25,7 @@ apt-get install -y curl ca-certificates git
 
 
 echo "Installing $app repo ..."
-curl -sSL https://files.freeswitch.org/repo/deb/debian/freeswitch_archive_g0.pub | apt-key add - 
+apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 79CD0F88
 echo "deb http://files.freeswitch.org/repo/deb/freeswitch-1.6/ jessie main" > /etc/apt/sources.list.d/freeswitch.list
 apt-get update
 
@@ -36,15 +36,99 @@ apt_fs_version=$(apt-cache show freeswitch | grep ^Version | grep $FREESWITCH_VE
 echo "erlang: $apt_erlang_version  freeswitch: $apt_fs_version"
 
 
-echo "Installing dependencies ..."
+[[ FREESWITCH_INSTALL_DEBUG = true ]] && ifdbg='-dbg'
+
+echo "Installing $app ..."
 apt-get install -y \
-    erlang-base=$apt_erlang_version \
+    freeswitch${ifdbg}=$apt_fs_version \
+    freeswitch-timezones \
+    $(for mod in ${FREESWITCH_INSTALL_LANGS//,/ }; 
+      do 
+        echo -n "freeswitch-lang-${mod} "
+      done) \
+    $(for mod in ${FREESWITCH_INSTALL_MODS//,/ }; 
+      do 
+        echo -n "freeswitch-mod-${mod}${ifdbg} "
+      done) \
+    $(for mod in ${FREESWITCH_INSTALL_CODECS//,/ }; 
+      do 
+        echo -n "freeswitch-mod-${mod}${ifdbg} "
+      done) \
+    $(for meta in ${FREESWITCH_INSTALL_META//,/ }; 
+      do 
+        echo -n "freeswitch-meta-${meta}${ifdbg} "
+      done)
+
+
+echo "Installing mod_kazoo manually ..."
+# install mod_kazoo manually because we only need a very 
+# minimal erlang env for epmd
+mkdir /tmp/kz
+pushd $_
+    apt-get download freeswitch-mod-kazoo
+    dpkg -x freeswitch-mod-kazoo* .
+    mv usr/lib/freeswitch/mod/mod_kazoo.so /usr/lib/freeswitch/mod/
+    popd && rm -rf $OLDPWD
+
+
+echo "Installing epmd manually ..."
+mkdir /tmp/erl 
+pushd $_
+    apt-get download erlang-base
+    dpkg -x erlang-base* .
+    mv usr/lib/erlang/erts-*/bin/epmd /usr/bin/
+    popd && rm -rf $OLDPWD
+
+
+# Note:
+# The package freeswitch-sounds-en-us-callie has the following requirements
+# but they are only required for the postinst trigger script which converts
+# the base flac files to different bitrates.  Because it's a dependency of
+# the package, trying to remove them afterwards removes the sounds also
+#
+# What I'm doing here is installing the requirements, downloading the package
+# extracting it, running the postinst trigger, then removing the requirements
+#
+# If you wish to uninstall the sounds later, use: 
+#   rm -rf /usr/share/freeswitch/sounds/en/us/callie
+
+echo "Installing sounds ..."
+apt-get install -y \
     flac \
+    libasound2 \
+    libasound2-data \
     libgomp1 \
     libgsm1 \
     libmagic1 \
     libopencore-amrnb0 \
     libopencore-amrwb0 \
+    libpng12-0 \
+    libsox-fmt-alsa \
+    libsox-fmt-base \
+    libsox2 \
+    libvorbisfile3 \
+    libwavpack1 \
+    sox
+
+mkdir /tmp/sounds
+pushd $_
+    apt-get download freeswitch-sounds-en-us-callie
+    dpkg -e freeswitch-sounds-en-us-callie*
+    dpkg -x freeswitch-sounds-en-us-callie* .
+    mv usr/share/freeswitch/sounds/ /usr/share/freeswitch/
+    DEBIAN/postinst configure
+    popd && rm -rf $OLDPWD
+
+apt-get purge -y --auto-remove \
+    flac \
+    libasound2 \
+    libasound2-data \
+    libgomp1 \
+    libgsm1 \
+    libmagic1 \
+    libopencore-amrnb0 \
+    libopencore-amrwb0 \
+    libpng12-0 \
     libsox-fmt-alsa \
     libsox-fmt-base \
     libsox2 \
@@ -53,89 +137,99 @@ apt-get install -y \
     sox
 
 
-echo "Installing $app ..."
-apt-get install -y \
-    freeswitch=$apt_fs_version \
-    freeswitch-lang \
-    freeswitch-timezones \
-    freeswitch-meta-codecs \
-    freeswitch-meta-lang \
-    freeswitch-meta-mod-say \
-    freeswitch-mod-abstraction \
-    freeswitch-mod-commands \
-    freeswitch-mod-conference \
-    freeswitch-mod-dptools \
-    freeswitch-mod-dialplan-xml \
-    freeswitch-mod-enum \
-    freeswitch-mod-fifo \
-    freeswitch-mod-http-cache \
-    freeswitch-mod-spandsp \
-    freeswitch-mod-flite \
-    freeswitch-mod-dingaling \
-    freeswitch-mod-loopback \
-    freeswitch-mod-portaudio \
-    freeswitch-mod-rtmp \
-    freeswitch-mod-sofia \
-    freeswitch-mod-erlang-event \
-    freeswitch-mod-event-socket \
-    freeswitch-mod-local-stream \
-    freeswitch-mod-portaudio-stream \
-    freeswitch-mod-sndfile \
-    freeswitch-mod-tone-stream \
-    freeswitch-mod-console \
-    freeswitch-mod-xml-cdr \
-    freeswitch-mod-xml-curl \
-    freeswitch-mod-xml-rpc \
-    freeswitch-mod-ilbc \
-    freeswitch-mod-shout \
-    freeswitch-mod-siren
-
-
-echo "Installing mod_kazoo ..."
-# install mod_kazoo manually because we only need a very 
-# minimal erlang env for epmd
-cd /tmp
-    apt-get download freeswitch-mod-kazoo
-    dpkg -x freeswitch-mod-kazoo* ov/
-    mv ov/usr/lib/freeswitch/mod/mod_kazoo.so /usr/lib/freeswitch/mod/
-    rm -rf ov freeswitch-mod-kazoo*.deb
-
-
-echo "Downloading sounds and music packages ..."
-# download the following packages so that they can generate the
-# sound and music files on first container startup, this cuts the
-# container size literally in half
-cd /tmp
-    apt-get download freeswitch-sounds-en-us-callie
-    apt-get download freeswitch-music-default
+echo "Creating directories ..."
+mkdir -p \
+    /volumes/ram/{log,run,db,cache,http_cache} \
+    /volumes/freeswitch/{storage,recordings} \
+    /volumes/tls \
+    /var/lib/freeswitch/images \
+    /usr/share/freeswitch/images \
+    /etc/freeswitch/gateways \
+    /tmp/freeswitch
 
 
 echo "Fetching kazoo-configs for $app ..."
+rm -rf /etc/freeswitch
 cd /tmp
-    git clone -b master --single-branch --depth 1 https://github.com/2600hz/kazoo-configs
-    cp -R kazoo-configs/freeswitch/* /etc/freeswitch/
-    rm -rf kazoo-configs
+    git clone -b $KAZOO_CONFIGS_BRANCH --single-branch --depth 1 https://github.com/2600hz/kazoo-configs kazoo-configs
+    pushd $_
+        mv freeswitch /etc/
+        popd && rm -rf $OLDPWD
 
 
-echo "Creating directories ..."
-mkdir -p \
-    /var/run/freeswitch \
-    /var/log/freeswitch \
-    /var/cache/freeswitch
+echo "Config fixes ..."
+pushd /etc/freeswitch
+    echo "Fixing paths containing kazoo ..."
+for f in $(grep -rl '/etc/kazoo' *)
+do
+    sed -i 's|/etc/kazoo|/etc|g' $f
+    grep '/etc/freeswitch' $f || true
+done
+    
+    # let's download the file that's referenced in conferences.conf.xml yet
+    # doesn't exist.
+    curl -sSL -o /usr/share/freeswitch/images/no_video_avatar.png \
+        'https://freeswitch.org/stash/projects/FS/repos/freeswitch/browse/images/default-avatar.png?at=9c459f881eb8deb09697aba2f965b77a2de25330&raw'
 
+    # we're using the tls dir now
+    rm -rf certs
 
-echo "Disabling broken or unnecessary modules ..."
-# disable mod_speex since it's not installed anyway and its deprecated. 
-sed -ir '/mod_speex/s/\(<.*>\)/<!--\1-->/' \
-    /etc/freeswitch/autoload_configs/modules.conf.xml
+    echo "Fixing ${app}.xml ..."
+    sed -i '\|recordings_dir|s|/tmp/|/volumes/freeswitch/recordings|' freeswitch.xml
+    sed -i '\|recordings_dir|a \
+    <X-PRE-PROCESS cmd="set" data="storage_dir=/volumes/freeswitch/storage"/> \
+    <X-PRE-PROCESS cmd="set" data="conf_dir=/etc/freeswitch"/> \
+    <X-PRE-PROCESS cmd="set" data="log_dir=/volumes/ram/log"/> \
+    <X-PRE-PROCESS cmd="set" data="run_dir=/volumes/ram/run"/> \
+    <X-PRE-PROCESS cmd="set" data="db_dir=/volumes/ram/db"/> \
+    <X-PRE-PROCESS cmd="set" data="cache_dir=/volumes/ram/cache"/> \
+    <X-PRE-PROCESS cmd="set" data="temp_dir=/tmp/freeswitch"/> \
+    <X-PRE-PROCESS cmd="set" data="certs_dir=/volumes/tls"/> \
+    <X-PRE-PROCESS cmd="set" data="images_dir=/usr/share/freeswitch/images"/>' $_
 
-# disable mod_logfile since we're in docker
-sed -ir '/mod_logfile/s/\(<.*>\)/<!--\1-->/' \
-    /etc/freeswitch/autoload_configs/modules.conf.xml
+    echo "Adding codecs: VP9,SILK,G729 ..."
+    sed -i '/codecs=/s/VP8/VP9,VP8/;/codecs=/s/OPUS/OPUS,SILK/;/codecs=/s/G722/G729,G722/' freeswitch.xml
+    grep 'hold_music\|recordings_dir\|codecs' $_
 
-# disable mod_celt since it doesn't seem to be around anymore
-sed -ir '/mod_celt/s/\(<.*>\)/<!--\1-->/' \
-    /etc/freeswitch/autoload_configs/modules.conf.xml
+    pushd sip_profiles
+        echo "fixing sip_profile ..."
+        sed -i '\|hold-music|s|local_stream://default|$${hold_music}|' sipinterface_1.xml
+        sed -i '\|tls-cert-dir|s|/etc/freeswitch/certs|$${certs_dir}|' $_
+        sed -i '/recordings_dir/s/temp/recordings/' $_
+        sed -i '/in-dialog-chat/s/<!--\(.*\)-->/\1/' $_
+        sed -i '/in-dialog-chat/a \
+            \
+            <!-- MESSAGES --> \
+            <param name="fire-message-events" value="true"/>' $_
+        grep 'fire-message-events\|hold-music' $_
+        popd
+
+    pushd autoload_configs
+        echo "Disabling broken or unnecessary modules ..."
+        # these loggers are unused in docker and these codecs are now in core
+        rm -f {logfile,syslog}.conf.xml
+        sed -i '/mod_syslog/d;/mod_logfile/d;/mod_speex/d;/mod_celt/d;' modules.conf.xml
+
+        echo "Fixing path in conference.conf.xml ..."
+        sed -i '\|video-no-video-avatar|s|value="/etc/images\(.*\)"|value="$${images_dir}\1"|' conference.conf.xml
+        grep video-no-video-avatar $_
+        
+        echo "Fixing http_cache path ..."
+        sed -i '\|location|s|value=".*"|value="/volumes/ram/http_cache"|' http_cache.conf.xml
+        grep location $_
+
+        echo "Fixing path in spandsp.conf.xml ..."
+        sed -i '\|spool-dir|s|/tmp|$${temp_dir}|' spandsp.conf.xml
+        grep spool-dir $_
+
+        echo "Adding modules to modules.conf.xml ..."
+        for mod in ${FREESWITCH_LOAD_MODS//,/ }
+        do 
+            sed -i "/Codec Interfaces/a \
+                \        <load module=\"mod_${mod}\"/>" modules.conf.xml
+        done
+        cat $_ | grep -v '<!' | awk 'NF'
+        popd
 
 
 echo "Cleaning up unneeded packages ..."
@@ -143,32 +237,18 @@ apt-get purge -y --auto-remove git
 
 
 echo "Setting Ownership & Permissions ..."
-chown -R freeswitch:freeswitch \
+chown -R $user:$user \
     ~ \
-    /opt/freeswitch \
     /etc/freeswitch \
+    /volumes/{freeswitch,ram,tls} \
     /usr/lib/freeswitch \
     /var/lib/freeswitch \
-    /usr/share/freeswitch \
-    /var/run/freeswitch \
-    /var/log/freeswitch \
-    /var/cache/freeswitch
+    /usr/share/freeswitch
 
-find /var/lib/freeswitch -type f -exec chmod 0755 {} \;
-find /var/lib/freeswitch -type d -exec chmod 0755 {} \;
-
-find /var/run/freeswitch -type f -exec chmod 0600 {} \;
-find /var/run/freeswitch -type d -exec chmod 0750 {} \;
-
-find /usr/share/freeswitch -type f -exec chmod 0755 {} \;
-find /usr/share/freeswitch -type d -exec chmod 0755 {} \;
-
-find /var/log/freeswitch -type f -exec chmod 0664 {} \;
-find /var/log/freeswitch -type d -exec chmod 0775 {} \;
+chmod -R 0777 /tmp/freeswitch /volumes/freeswitch/{storage,recordings}
 
 
 echo "Cleaning up ..."
-
 apt-clean --aggressive
 
 # if applicable, clean up after detect-proxy enable

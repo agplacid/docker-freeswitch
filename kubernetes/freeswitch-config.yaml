@@ -14,3 +14,4 @@ data:
   freeswitch.disable-nat-detection: 'false'
   freeswitch.fire-message-events: 'true'
   freeswitch.skip-sounds: 'false'
+  freeswitch.event-socket-listen-ip: 0.0.0.0

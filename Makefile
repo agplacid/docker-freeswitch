@@ -51,20 +51,23 @@ run:
 	@docker run -it --rm --name $(NAME) --entrypoint bash $(LOCAL_TAG)
 
 launch:
-	@docker run -d --name $(NAME) --tmpfs /usr/share/freeswitch/http_cache:size=512M --tmpfs /var/lib/freeswitch:size=512M --cap-add sys_nice --privileged $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local --tmpfs /volumes/ram:size=512M --cap-add sys_nice $(LOCAL_TAG)
 
 launch-fast:
-	@docker run -d --name $(NAME) -e "FREESWITCH_SKIP_SOUNDS=true" --tmpfs /usr/share/freeswitch/http_cache:size=512M --tmpfs /var/lib/freeswitch:size=512M --cap-add sys_nice --privileged $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local -e "FREESWITCH_SKIP_SOUNDS=true" --tmpfs /volumes/ram:size=512M --cap-add sys_nice $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -h freeswitch.local -e "FREESWITCH_SKIP_SOUNDS=true" -e "FREESWITCH_DISABLE_NAT_DETECTION=false" -e "FREESWITCH_RTP_START_PORT=16384" -e "FREESWITCH_RTP_END_PORT=16484" -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --tmpfs /usr/share/freeswitch/http_cache:size=512M --tmpfs /usr/share/freeswitch/http_cache:size=512M --cap-add sys_nice --privileged --network=local --net-alias freeswitch.local $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local --env-file net.env -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --tmpfs /volumes/ram:size=512M --cap-add sys_nice --network=local --net-alias $(NAME).local $(LOCAL_TAG)
+
+launch-as-dep:
+	@$(MAKE) launch-net
 
 create-network:
 	@docker network create -d bridge local
 
 proxies-up:
 	@cd ../docker-aptcacher-ng && make remote-persist
-	@cd ../docker-squid && make remote-persist
+	#@cd ../docker-squid && make remote-persist
 
 logs:
 	@docker logs $(NAME)
