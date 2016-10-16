@@ -13,6 +13,13 @@ GITHUB_REPO = docker-freeswitch
 DOCKER_REPO = freeswitch
 BUILD_BRANCH = master
 
+VOLUME_ARGS = --tmpfs /volumes/ram:size=512M
+ENV_ARGS = --env-file default.env
+PORT_ARGS = -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" -p "8021:8021" -p "8031:8031"
+CAP_ARGS = --cap-add sys_nice
+SHELL = bash -l
+
+-include ../Makefile.inc
 
 .PHONY: all build test release shell run start stop rm rmi default
 
@@ -45,19 +52,31 @@ push:
 	@git push origin master
 
 shell:
-	@docker exec -ti $(NAME) /bin/bash
+	@docker exec -ti $(NAME) $(SHELL)
 
 run:
-	@docker run -it --rm --name $(NAME) --entrypoint bash $(LOCAL_TAG)
+	@docker run -it --rm --name $(NAME) $(LOCAL_TAG) $(SHELL)
 
 launch:
-	@docker run -d --name $(NAME) -h $(NAME).local --tmpfs /volumes/ram:size=512M --cap-add sys_nice $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) $(LOCAL_TAG)
 
 launch-fast:
-	@docker run -d --name $(NAME) -h $(NAME).local -e "FREESWITCH_SKIP_SOUNDS=true" --tmpfs /volumes/ram:size=512M --cap-add sys_nice $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -h $(NAME).local --env-file net.env -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" --tmpfs /volumes/ram:size=512M --cap-add sys_nice --network=local --net-alias $(NAME).local $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) --network=local --net-alias $(NAME).local $(LOCAL_TAG)
+
+reloadxml:
+	@docker exec $(NAME) fs_cli -x 'reloadxml'
+
+http-clear-cache:
+	@docker exec $(NAME) fs_cli -x 'http_clear_cache' 
+
+erlang-status:
+	@docker exec $(NAME) fs_cli -x 'erlang status'
+
+sofia-status:
+	@docker exec $(NAME) fs_cli -x 'sofia status'
 
 launch-as-dep:
 	@$(MAKE) launch-net
@@ -94,10 +113,10 @@ rmi:
 	@docker rmi $(LOCAL_TAG)
 	@docker rmi $(REMOTE_TAG)
 
-dclean:
-	@-docker ps -aq | gxargs -I{} docker rm {} 2> /dev/null || true
-	@-docker images -f dangling=true -q | xargs docker rmi
-	@-docker volume ls -f dangling=true -q | xargs docker volume rm
+# dclean:
+# 	@-docker ps -aq | gxargs -I{} docker rm {} 2> /dev/null || true
+# 	@-docker images -f dangling=true -q | xargs docker rmi
+# 	@-docker volume ls -f dangling=true -q | xargs docker volume rm
 
 kube-deploy:
 	@kubectl create -f kubernetes/$(NAME)-deployment.yaml --record
@@ -129,16 +148,16 @@ kube-logsft:
 kube-shell:
 	@kubectl exec -ti $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1) -- bash
 
-freeswitch-erlang-status:
+kube-erlang-status:
 	@kubectl exec $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1) -- fs_cli -x 'erlang status'
 
-freeswitch-sofia-status:
+kube-sofia-status:
 	@kubectl exec $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1) -- fs_cli -x 'sofia status'
 
-freeswitch-reload:
+kube-reloadxml:
 	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'reloadxml'
 
-freeswitch-http-clear-cache:
+kube-http-clear-cache:
 	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'http_clear_cache' 
 
 default: build

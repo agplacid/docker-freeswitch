@@ -39,12 +39,14 @@ fi
 # Enable TLS here
 : ${FREESWITCH_ENABLE_TLS:=false}
 
-
 function log 
 {
     local msg="$1"
     echo -e "\E[36m[*]\E[0m ${msg}" 
 }
+
+# If sounds havn't been generated, generate them now
+[[ -f ~/.init-sounds ]] && ~/init-sounds.sh &
 
 
 log "Writing erlang cookie ..." 
@@ -142,7 +144,6 @@ sed -i "/rtp-end-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_END_PORT\"/" $_
 grep 'rtp-' $_
 
 
-
 if [[ $FREESWITCH_CAPTURE_SERVER = true ]]
 then
     log "Enabling capture server ..."
@@ -167,7 +168,6 @@ log "Ensuring permissions ..."
 chown -R $user:$user ~ /etc/freeswitch /var/lib/freeswitch /volumes/ram
 chmod -R 0777 \
     /var/lib/freeswitch \
-    /usr/share/freeswitch \
     /volumes/ram \
     /volumes/freeswitch/{recordings,storage} \
     /tmp/freeswitch
@@ -179,5 +179,5 @@ log "Building arguments ..."
 cd ~
     log "Starting $app ..."
     gosu $user epmd -daemon
-    # -conf /etc/freeswitch -log /volumes/ram/log -run /volumes/ram/run -db /volumes/ram/db -cache /volumes/ram/cache
+
     exec freeswitch -c -rp -nf -u $user -g $user $nonat_args 2>&1

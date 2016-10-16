@@ -80,19 +80,7 @@ pushd $_
     popd && rm -rf $OLDPWD
 
 
-# Note:
-# The package freeswitch-sounds-en-us-callie has the following requirements
-# but they are only required for the postinst trigger script which converts
-# the base flac files to different bitrates.  Because it's a dependency of
-# the package, trying to remove them afterwards removes the sounds also
-#
-# What I'm doing here is installing the requirements, downloading the package
-# extracting it, running the postinst trigger, then removing the requirements
-#
-# If you wish to uninstall the sounds later, use: 
-#   rm -rf /usr/share/freeswitch/sounds/en/us/callie
-
-echo "Installing sounds ..."
+echo "Installing reqs for callie transcoding ..."
 apt-get install -y \
     flac \
     libasound2 \
@@ -110,31 +98,47 @@ apt-get install -y \
     libwavpack1 \
     sox
 
-mkdir /tmp/sounds
-pushd $_
-    apt-get download freeswitch-sounds-en-us-callie
-    dpkg -e freeswitch-sounds-en-us-callie*
-    dpkg -x freeswitch-sounds-en-us-callie* .
-    mv usr/share/freeswitch/sounds/ /usr/share/freeswitch/
-    DEBIAN/postinst configure
-    popd && rm -rf $OLDPWD
 
-apt-get purge -y --auto-remove \
-    flac \
-    libasound2 \
-    libasound2-data \
-    libgomp1 \
-    libgsm1 \
-    libmagic1 \
-    libopencore-amrnb0 \
-    libopencore-amrwb0 \
-    libpng12-0 \
-    libsox-fmt-alsa \
-    libsox-fmt-base \
-    libsox2 \
-    libvorbisfile3 \
-    libwavpack1 \
-    sox
+# Download sounds and music package for first container startup
+mkdir ~/sounds
+pushd $_
+    apt-get download freeswitch-sounds* freeswitch-music*
+    touch ~/.init-sounds
+
+# This script will be launched the first time the container is started
+# and run the sound transcode job in the background before deleting itself
+#
+# This tweak alone only takes a few moments but saves several hundred MB
+# in the final image size and requires no network connectivity.
+tee ~/init-sounds.sh <<'EOF'
+#!/bin/bash
+
+this="$0"
+
+function finish
+{
+    shred -u $this > /dev/null 2>&1
+}
+
+if [[ -f ~/.init-sounds ]]
+then
+    if stat ~/sounds/freeswitch-sounds* > /dev/null 2>&1
+    then
+        cd ~/sounds && dpkg -i freeswitch-sounds* > /dev/null 2>&1 &
+    fi 
+    if stat /tmp/sounds/freeswitch-music* > /dev/null 2>&1
+    then
+        cd ~/sounds && dpkg -i freeswitch-music* > /dev/null 2>&1 &
+    fi
+    wait
+    cd /
+    chown -R freeswitch:freeswitch /usr/share/freeswitch/sounds > /dev/null 2>&1
+    rm -rf ~/sounds > /dev/null 2>&1
+    rm -f ~/.init-sounds > /dev/null 2>&1
+    trap finish EXIT
+fi
+EOF
+chmod +x $_
 
 
 echo "Creating directories ..."

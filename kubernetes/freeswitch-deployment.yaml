@@ -47,21 +47,16 @@ spec:
             configMapKeyRef:
               name: freeswitch-config
               key: freeswitch.disable-nat-detection
-        - name: FREESWITCH_FIRE_MESSAGE_EVENTS
+        - name: FREESWITCH_ENABLE_TLS
           valueFrom:
             configMapKeyRef:
               name: freeswitch-config
-              key: freeswitch.fire-message-events
+              key: freeswitch.enable-tls
         - name: FREESWITCH_EVENT_SOCKET_LISTEN_IP
           valueFrom:
             configMapKeyRef:
               name: freeswitch-config
               key: freeswitch.event-socket-listen-ip
-        - name: FREESWITCH_ACL_CLUSTER_ALLOW_CIDR
-          valueFrom:
-            configMapKeyRef:
-              name: freeswitch-config
-              key: freeswitch.acl-cluster-allow-cidr
         - name: FREESWITCH_EVENT_SOCKET_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -73,8 +68,8 @@ spec:
               name: erlang-cookie
               key: erlang.cookie
         volumeMounts:
-        - name: var-lib-ramfs
-          mountPath: /var/lib/freeswitch/db
+        - name: volumes-ram
+          mountPath: /volumes/ram
         ports:
         - name: mod-kazoo
           protocol: TCP
@@ -101,7 +96,7 @@ spec:
           timeoutSeconds: 10
         imagePullPolicy: Always
       volumes:
-      - name: var-lib-ramfs
+      - name: volumes-ram
         emptyDir:
           medium: Memory
       restartPolicy: Always
