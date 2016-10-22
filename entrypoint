@@ -45,8 +45,14 @@ function log
     echo -e "\E[36m[*]\E[0m ${msg}" 
 }
 
+function errlog
+{
+    local msg="$1"
+    echo -e "\E[31m[x]\E[0m ${msg}" >&2
+}
+
 # If sounds havn't been generated, generate them now
-[[ -f ~/.init-sounds ]] && ~/init-sounds.sh &
+[[ -f ~/.init-sounds ]] && ~/init-sounds.sh > /dev/null 2>&1 &
 
 
 log "Writing erlang cookie ..." 
@@ -124,7 +130,7 @@ cat /etc/freeswitch/autoload_configs/event_socket.conf.xml
 log "Writing /etc/fs_cli.conf ..."
 cat <<EOF > /etc/fs_cli.conf
 [default]
-loglevel => $FREESWITCH_LOG_LEVEL
+;loglevel => $FREESWITCH_LOG_LEVEL
 host     => $(if [[ $FREESWITCH_EVENT_SOCKET_LISTEN_IP = '0.0.0.0' ]]; then echo '127.0.0.1'; else echo "$FREESWITCH_EVENT_SOCKET_LISTEN_IP"; fi)
 port     => 8021
 password => $FREESWITCH_EVENT_SOCKET_PASSWORD
@@ -171,6 +177,45 @@ chmod -R 0777 \
     /volumes/ram \
     /volumes/freeswitch/{recordings,storage} \
     /tmp/freeswitch
+
+
+log "Applying performance enhancements ..."
+if capsh --supports=cap_sys_resource
+then
+    log "Setting ulimits ..."
+    ulimit -c unlimited # max core files size
+    ulimit -d unlimited # max proc data segment size
+    ulimit -f unlimited # max file size
+    ulimit -l unlimited # max locked memory size
+    ulimit -n 999999    # max file descriptors
+    ulimit -m unlimited # max memory size
+    ulimit -s 240    # max stack size
+    ulimit -H -s 240    # max stack size hard
+    ulimit -t unlimited # max cpu time
+    ulimit -u unlimited # max procs
+    ulimit -v unlimited # max virtual memory size
+    ulimit -e 31        # max scheduling priority
+    ulimit -x unlimited # max file locks
+    ulimit -i unlimited # max pending signals
+    ulimit -q unlimited # max msg queue size
+    ulimit -r 70        # max realtime priority
+    ulimit -a
+else
+    errlog "Capability to set resource limits is restricted in this container. For best performance please run container with --cap-add SYS_RESOURCE"
+fi
+
+if capsh --supports=cap_sys_nice
+then
+    log "Setting nice level to -11 ..."
+    renice -11 $$
+else
+    errlog "Capability to set nice level is restricted in this container. For best performance please run container with --cap-add SYS_NICE"
+fi
+
+if ! capsh --supports=cap_net_raw
+then
+    errlog "Ability to use raw sockets restricted in container. For best performance please run container with --cap-add NET_RAW"
+fi
 
 
 log "Building arguments ..."

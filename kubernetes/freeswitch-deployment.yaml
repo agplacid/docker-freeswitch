@@ -20,7 +20,12 @@ spec:
         image: callforamerica/freeswitch
         capabilities:
           add:
+          - IPC_LOCK
+          - NET_ADMIN
+          - NET_RAW
+          - NET_BROADCAST
           - SYS_NICE
+          - SYS_RESOURCE
         env:
         - name: FREESWITCH_LOG_LEVEL
           valueFrom:

@@ -16,7 +16,7 @@ BUILD_BRANCH = master
 VOLUME_ARGS = --tmpfs /volumes/ram:size=512M
 ENV_ARGS = --env-file default.env
 PORT_ARGS = -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" -p "8021:8021" -p "8031:8031"
-CAP_ARGS = --cap-add sys_nice
+CAP_ARGS = --cap-add IPC_LOCK --cap-add SYS_NICE --cap-add SYS_RESOURCE --cap-add NET_ADMIN --cap-add NET_RAW --cap-add NET_BROADCAST
 SHELL = bash -l
 
 -include ../Makefile.inc
@@ -66,6 +66,18 @@ launch-fast:
 launch-net:
 	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) --network=local --net-alias $(NAME).local $(LOCAL_TAG)
 
+launch-dev:
+	@$(MAKE) launch-net
+
+rmf-dev:
+	@$(MAKE) rmf
+
+launch-as-dep:
+	@$(MAKE) launch-net
+
+rmf-as-dep:
+	@$(MAKE) rmf
+
 reloadxml:
 	@docker exec $(NAME) fs_cli -x 'reloadxml'
 
@@ -78,15 +90,14 @@ erlang-status:
 sofia-status:
 	@docker exec $(NAME) fs_cli -x 'sofia status'
 
-launch-as-dep:
-	@$(MAKE) launch-net
-
 create-network:
 	@docker network create -d bridge local
 
 proxies-up:
 	@cd ../docker-aptcacher-ng && make remote-persist
-	#@cd ../docker-squid && make remote-persist
+
+shutdown-elegant:
+	@docker exec $(NAME) fs_cli -x 'fsctl shutdown elegant'
 
 logs:
 	@docker logs $(NAME)
@@ -112,11 +123,6 @@ rmf:
 rmi:
 	@docker rmi $(LOCAL_TAG)
 	@docker rmi $(REMOTE_TAG)
-
-# dclean:
-# 	@-docker ps -aq | gxargs -I{} docker rm {} 2> /dev/null || true
-# 	@-docker images -f dangling=true -q | xargs docker rmi
-# 	@-docker volume ls -f dangling=true -q | xargs docker volume rm
 
 kube-deploy:
 	@kubectl create -f kubernetes/$(NAME)-deployment.yaml --record
@@ -159,5 +165,8 @@ kube-reloadxml:
 
 kube-http-clear-cache:
 	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'http_clear_cache' 
+
+kube-shutdown-elegant:
+	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'fsctl shutdown elegant'
 
 default: build

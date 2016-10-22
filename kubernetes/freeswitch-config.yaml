@@ -14,5 +14,4 @@ data:
   freeswitch.disable-nat-detection: 'false'
   freeswitch.skip-sounds: 'false'
   freeswitch.event-socket-listen-ip: 0.0.0.0
-  freeswitch.host: freeswitch
   freeswitch.enable-tls: 'false'

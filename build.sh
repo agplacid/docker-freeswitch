@@ -21,7 +21,7 @@ echo 'deb http://packages.erlang-solutions.com/debian jessie contrib' > /etc/apt
 
 echo "Installing essentials ..."
 apt-get update
-apt-get install -y curl ca-certificates git
+apt-get install -y curl ca-certificates git libcap2-bin
 
 
 echo "Installing $app repo ..."
@@ -217,10 +217,6 @@ done
         echo "Fixing path in conference.conf.xml ..."
         sed -i '\|video-no-video-avatar|s|value="/etc/images\(.*\)"|value="$${images_dir}\1"|' conference.conf.xml
         grep video-no-video-avatar $_
-        
-        echo "Fixing http_cache path ..."
-        sed -i '\|location|s|value=".*"|value="/volumes/ram/http_cache"|' http_cache.conf.xml
-        grep location $_
 
         echo "Fixing path in spandsp.conf.xml ..."
         sed -i '\|spool-dir|s|/tmp|$${temp_dir}|' spandsp.conf.xml
@@ -233,6 +229,24 @@ done
                 \        <load module=\"mod_${mod}\"/>" modules.conf.xml
         done
         cat $_ | grep -v '<!' | awk 'NF'
+        
+        echo "Setting up mod_http_cache to work with ssl ..."
+        mkdir -p /usr/share/freeswitch/certs
+        curl -sSL http://curl.haxx.se/ca/cacert.pem -o $_/cacert.pem
+        chown -R $user:$user $(dirname $_)
+
+        sed -i '\|<settings>|a \
+    <!-- set to true if you want to enable http:// and https:// formats.  Do not use if mod_httapi is also loaded --> \
+    <param name="enable-file-formats" value="true"/> \' http_cache.conf.xml
+        sed -i '\|location|s|value=".*"|value="/volumes/ram/http_cache"|' $_
+        sed -i '\|</settings>|i \
+    <!-- absolute path to CA bundle file --> \
+    <param name="ssl-cacert" value="/usr/share/freeswitch/certs/cacert.pem"/> \
+    <!-- verify certificates --> \
+    <param name="ssl-verifypeer" value="true"/> \
+    <!-- verify host name matches certificate --> \
+    <param name="ssl-verifyhost" value="true"/>' $_
+        cat $_
         popd
 
 
