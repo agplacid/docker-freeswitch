@@ -249,6 +249,9 @@ done
         cat $_
         popd
 
+    pushd scripts
+        sed -i 's/whapps/kapps/g;s/wh_/kz_/g;\|your-kazoo-api-fqdn|s|--insecure https://your-kazoo-api-fqdn:8443|http://kazoo:8000|' kazoo-sync.sh
+
 
 echo "Cleaning up unneeded packages ..."
 apt-get purge -y --auto-remove git

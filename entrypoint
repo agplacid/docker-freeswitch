@@ -180,7 +180,7 @@ chmod -R 0777 \
 
 
 log "Applying performance enhancements ..."
-if capsh --supports=cap_sys_resource
+if capsh --print | grep -q cap_sys_resource
 then
     log "Setting ulimits ..."
     ulimit -c unlimited # max core files size
@@ -204,7 +204,7 @@ else
     errlog "Capability to set resource limits is restricted in this container. For best performance please run container with --cap-add SYS_RESOURCE"
 fi
 
-if capsh --supports=cap_sys_nice
+if capsh --print | grep -q cap_sys_nice
 then
     log "Setting nice level to -11 ..."
     renice -11 $$
@@ -212,7 +212,7 @@ else
     errlog "Capability to set nice level is restricted in this container. For best performance please run container with --cap-add SYS_NICE"
 fi
 
-if ! capsh --supports=cap_net_raw
+if ! capsh --print | grep -q cap_net_raw
 then
     errlog "Ability to use raw sockets restricted in container. For best performance please run container with --cap-add NET_RAW"
 fi
