@@ -2,64 +2,39 @@
 
 set -e
 
-app=freeswitch
-user=$app
+[[ -f /etc/entrypoint ]] && . /etc/entrypoint
+[[ -f /etc/default/$APP ]] && . /etc/default/$APP
 
-if [ -f /etc/default/$app ]
-then
-    . /etc/default/$app
-fi
-
-# options: 
-# debug info notice warning err crit alert console
-: ${FREESWITCH_LOG_LEVEL:=info}
-: ${FREESWITCH_LOG_COLOR:=true}
+# options: debug info notice warning err crit alert console
+: readonly ${FREESWITCH_LOG_LEVEL:=info}
+: readonly ${FREESWITCH_LOG_COLOR:=true}
 
 # RTP port range settings
-: ${FREESWITCH_RTP_START_PORT:=16384}
-: ${FREESWITCH_RTP_END_PORT:=32768}
+: declare -ir ${FREESWITCH_RTP_START_PORT:=16384}
+: declare -ir ${FREESWITCH_RTP_END_PORT:=32768}
 
-: ${MOD_KAZOO_LISTEN_IP:=0.0.0.0}
+: readonly ${MOD_KAZOO_LISTEN_IP:=0.0.0.0}
 
-# if true, sets -nonat flat on freeswitch
-: ${FREESWITCH_DISABLE_NAT_DETECTION:=true}
+# if true, sets -nonat flag on freeswitch
+: readonly ${FREESWITCH_DISABLE_NAT_DETECTION:=true}
 
-: ${FREESWITCH_SEND_ALL_HEADERS:=true}
+: readonly ${FREESWITCH_SEND_ALL_HEADERS:=true}
 
 # These settings determine event socket settings
-: ${FREESWITCH_EVENT_SOCKET_LISTEN_IP:=127.0.0.1}
+: readonly ${FREESWITCH_EVENT_SOCKET_LISTEN_IP:=127.0.0.1}
 # if set, will password protect fs_cli
 # if blank, will comment out the password tag
-: ${FREESWITCH_EVENT_SOCKET_PASSWORD:=}
+: readonly ${FREESWITCH_EVENT_SOCKET_PASSWORD:=}
 
 # settings for sipcapture
-: ${FREESWITCH_CAPTURE_SERVER:=false}
-: ${FREESWITCH_CAPTURE_IP:=127.0.0.1}
+: readonly ${FREESWITCH_CAPTURE_SERVER:=false}
+: readonly ${FREESWITCH_CAPTURE_IP:=127.0.0.1}
 
 # Enable TLS here
-: ${FREESWITCH_ENABLE_TLS:=false}
-
-function log 
-{
-    local msg="$1"
-    echo -e "\E[36m[*]\E[0m ${msg}" 
-}
-
-function errlog
-{
-    local msg="$1"
-    echo -e "\E[31m[x]\E[0m ${msg}" >&2
-}
-
-# If sounds havn't been generated, generate them now
-[[ -f ~/.init-sounds ]] && ~/init-sounds.sh > /dev/null 2>&1 &
+: readonly ${FREESWITCH_TLS_ENABLE:=false}
 
 
-log "Writing erlang cookie ..." 
-write-erlang-cookie
-
-
-log "Rewriting kazoo.conf.xml ..."
+log::m-info "Rewriting kazoo.conf.xml ..."
 tee /etc/freeswitch/autoload_configs/kazoo.conf.xml <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration name="kazoo.conf" description="General purpose Erlang C-node produced to better fit the Kazoo project">
@@ -78,7 +53,7 @@ tee /etc/freeswitch/autoload_configs/kazoo.conf.xml <<EOF
 EOF
 
 
-log "Setting $app log level $FREESWITCH_LOG_LEVEL ..."
+log::m-info "Setting $APP log level $FREESWITCH_LOG_LEVEL ..."
 tee /etc/freeswitch/autoload_configs/console.conf.xml <<EOF
 <configuration name="console.conf" description="Console Logger">
     <settings>
@@ -92,7 +67,7 @@ tee /etc/freeswitch/autoload_configs/console.conf.xml <<EOF
 EOF
 
 
-log "Writing event-socket ACL ..."
+log::m-info "Writing event-socket ACL ..."
 tee /etc/freeswitch/autoload_configs/event-socket-acl.conf.xml <<EOF
 <configuration name="acl.conf" description="ACL for Event Socket Access">
   <network-lists>
@@ -110,51 +85,53 @@ tee /etc/freeswitch/autoload_configs/event-socket-acl.conf.xml <<EOF
 EOF
 
 
-log "Rewriting event_socket config ..."
-cat <<EOF > /etc/freeswitch/autoload_configs/event_socket.conf.xml
+log::m-info "Rewriting event_socket config ..."
+tee /etc/freeswitch/autoload_configs/event_socket.conf.xml <<EOF
 <configuration name="event_socket.conf" description="Socket Client">
     <settings>
         <param name="nat-map" value="false"/>
         <param name="listen-ip" value="$FREESWITCH_EVENT_SOCKET_LISTEN_IP"/>
         <param name="listen-port" value="8021"/>
-        <param name="password" value="$FREESWITCH_EVENT_SOCKET_PASSWORD"/>
+        $(if [[ ! -z $FREESWITCH_EVENT_SOCKET_PASSWORD ]]; then
+            echo "<param name=\"password\" value=\"$FREESWITCH_EVENT_SOCKET_PASSWORD\"/>"
+          fi)
         <param name="apply-inbound-acl" value="event-socket-allow"/>
     </settings>
 </configuration>
 EOF
 
-[[ -z $FREESWITCH_EVENT_SOCKET_PASSWORD ]] && sed -i '/password/d' /etc/freeswitch/autoload_configs/event_socket.conf.xml
-cat /etc/freeswitch/autoload_configs/event_socket.conf.xml
 
-
-log "Writing /etc/fs_cli.conf ..."
-cat <<EOF > /etc/fs_cli.conf
+log::m-info "Writing /etc/fs_cli.conf ..."
+tee /etc/fs_cli.conf <<EOF
 [default]
 ;loglevel => $FREESWITCH_LOG_LEVEL
-host     => $(if [[ $FREESWITCH_EVENT_SOCKET_LISTEN_IP = '0.0.0.0' ]]; then echo '127.0.0.1'; else echo "$FREESWITCH_EVENT_SOCKET_LISTEN_IP"; fi)
+host     => $(if [[ $FREESWITCH_EVENT_SOCKET_LISTEN_IP = '0.0.0.0' ]]; then
+                  echo '127.0.0.1'
+              else
+                  echo "$FREESWITCH_EVENT_SOCKET_LISTEN_IP"
+              fi)
 port     => 8021
-password => $FREESWITCH_EVENT_SOCKET_PASSWORD
+$(if [[ ! -z $FREESWITCH_EVENT_SOCKET_PASSWORD ]]; then
+    echo "password => $FREESWITCH_EVENT_SOCKET_PASSWORD"
+  fi)
 EOF
-[[ -z $FREESWITCH_EVENT_SOCKET_PASSWORD ]] && sed -i '/password/d' /etc/fs_cli.conf
-cat /etc/fs_cli.conf
 
 
-log "Setting tls settings ..."
-sed -i "/\"tls\"/s/value=\".*\"/value=\"$FREESWITCH_ENABLE_TLS\"/" /etc/freeswitch/sip_profiles/sipinterface_1.xml
+log::m-info "Setting tls settings ..."
+sed -i "/\"tls\"/s/value=\".*\"/value=\"$FREESWITCH_TLS_ENABLE\"/" /etc/freeswitch/sip_profiles/sipinterface_1.xml
 grep '"tls"' $_
 
 
-log "Setting RTP Port Range Min/Max on switch.conf.xml ..."
+log::m-info "Setting RTP Port Range Min/Max on switch.conf.xml ..."
 sed -i "/rtp-start-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_START_PORT\"/" /etc/freeswitch/autoload_configs/switch.conf.xml
 sed -i "/rtp-end-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_END_PORT\"/" $_
 grep 'rtp-' $_
 
 
-if [[ $FREESWITCH_CAPTURE_SERVER = true ]]
-then
-    log "Enabling capture server ..."
+if [[ $FREESWITCH_CAPTURE_SERVER = true ]]; then
+    log::m-info "Enabling capture server ..."
     sed -i "/global_settings/a \
-        \       <param name=\"capture-server\" value=\"udp:${FREESWITCH_CAPTURE_IP}:9060;hep=3;capture_id=200\"/>" /etc/freeswitch/autoload_configs/sofia.conf.xml 
+        \       <param name=\"capture-server\" value=\"udp:${FREESWITCH_CAPTURE_IP}:9060;hep=3;capture_id=200\"/>" /etc/freeswitch/autoload_configs/sofia.conf.xml
     grep capture-server $_
 
     sed -i "/<!-- SIP -->/a \
@@ -163,66 +140,32 @@ then
 fi
 
 
-log "Ensuring volume contained dirs ..."
-mkdir -p /volumes/freeswitch/{recordings,storage}
-
-log "Ensuring ramfs directories ..."
+log::m-info "Ensuring volume dirs ..."
 mkdir -p /volumes/ram/{log,run,db,cache,http_cache}
 
 
-log "Ensuring permissions ..."
-chown -R $user:$user ~ /etc/freeswitch /var/lib/freeswitch /volumes/ram
-chmod -R 0777 \
-    /var/lib/freeswitch \
-    /volumes/ram \
-    /volumes/freeswitch/{recordings,storage} \
-    /tmp/freeswitch
+log::m-info "Setting ulimits ..."
+set-limits freeswitch
 
 
-log "Applying performance enhancements ..."
-if capsh --print | grep -q cap_sys_resource
-then
-    log "Setting ulimits ..."
-    ulimit -c unlimited # max core files size
-    ulimit -d unlimited # max proc data segment size
-    ulimit -f unlimited # max file size
-    ulimit -l unlimited # max locked memory size
-    ulimit -n 999999    # max file descriptors
-    ulimit -m unlimited # max memory size
-    ulimit -s 240    # max stack size
-    ulimit -H -s 240    # max stack size hard
-    ulimit -t unlimited # max cpu time
-    ulimit -u unlimited # max procs
-    ulimit -v unlimited # max virtual memory size
-    ulimit -e 31        # max scheduling priority
-    ulimit -x unlimited # max file locks
-    ulimit -i unlimited # max pending signals
-    ulimit -q unlimited # max msg queue size
-    ulimit -r 70        # max realtime priority
-    ulimit -a
-else
-    errlog "Capability to set resource limits is restricted in this container. For best performance please run container with --cap-add SYS_RESOURCE"
-fi
-
-if capsh --print | grep -q cap_sys_nice
-then
-    log "Setting nice level to -11 ..."
-    renice -11 $$
-else
-    errlog "Capability to set nice level is restricted in this container. For best performance please run container with --cap-add SYS_NICE"
-fi
-
-if ! capsh --print | grep -q cap_net_raw
-then
-    errlog "Ability to use raw sockets restricted in container. For best performance please run container with --cap-add NET_RAW"
+if linux::cap::is-disabled 'net_raw'; then
+    linux::cap::show-warning 'net_raw'
 fi
 
 
-log "Building arguments ..."
-[[ $FREESWITCH_DISABLE_NAT_DETECTION = true ]] && nonat_args='-nonat'
+log::m-info "Ensuring permissions ..."
+chown -R $USER:$USER ~ /etc/freeswitch
+fixattrs
 
+
+log::m-info "Building arguments ..."
+CMD_ARGS=(-c -rp -nf -u $USER -g $USER)
+[[ $FREESWITCH_DISABLE_NAT_DETECTION = true ]] && \
+    CMD_ARGS+=(-nonat)
+set -- ${CMD_ARGS[@]}
+
+
+log::m-info "Starting $APP ..."
 cd ~
-    log "Starting $app ..."
-    gosu $user epmd -daemon
-
-    exec freeswitch -c -rp -nf -u $user -g $user $nonat_args 2>&1
+    gosu $USER epmd -daemon
+    exec freeswitch "$@" 2>&1

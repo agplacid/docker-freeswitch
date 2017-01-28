@@ -1,7 +1,11 @@
-kind: Service
 apiVersion: v1
-metadata: 
+kind: Service
+metadata:
   name: freeswitch
+  labels:
+    app: freeswitch
+    project: valuphone
+    environment: production
 spec:
   clusterIP: None
   selector:
@@ -10,11 +14,8 @@ spec:
     environment: production
   ports:
   - name: event-socket
-    protocol: TCP
-    port:  8021
+    port: 8021
   - name: mod-kazoo
-    protocol: TCP
-    port:  8031
+    port: 8031
   - name: sip
-    protocol: TCP
     port: 11000

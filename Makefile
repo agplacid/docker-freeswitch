@@ -1,172 +1,108 @@
-NS = vp
-NAME = freeswitch
-APP_VERSION = 1.6
-IMAGE_VERSION = 2.0
-VERSION = $(APP_VERSION)-$(IMAGE_VERSION)
-LOCAL_TAG = $(NS)/$(NAME):$(VERSION)
+SHELL = /bin/zsh
+SHELLFLAGS = -c
 
-REGISTRY = callforamerica
-ORG = vp
-REMOTE_TAG = $(REGISTRY)/$(NAME):$(VERSION)
+NAME := $(shell basename $(PWD) | cut -d'-' -f2)
+BRANCH ?= $(shell basename $(shell git status | head -1 | rev | cut -d" " -f1 | rev))
+ifeq ($(BRANCH),master)
+	TAG := latest
+else
+	TAG := $(BRANCH)
+endif
+DOCKER_USER ?= callforamerica
+DOCKER_IMAGE := $(DOCKER_USER)/$(NAME):$(TAG)
 
-GITHUB_REPO = docker-freeswitch
-DOCKER_REPO = freeswitch
-BUILD_BRANCH = master
+BUILD_TOKEN = f7cb35b0-df97-4b72-8cfc-24503f01776e
 
-VOLUME_ARGS = --tmpfs /volumes/ram:size=512M
+CSHELL = bash -l
+# VOLUME_ARGS = --tmpfs /volumes/ram:size=512M
 ENV_ARGS = --env-file default.env
 PORT_ARGS = -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" -p "8021:8021" -p "8031:8031"
 CAP_ARGS = --cap-add IPC_LOCK --cap-add SYS_NICE --cap-add SYS_RESOURCE --cap-add NET_ADMIN --cap-add NET_RAW --cap-add NET_BROADCAST
-SHELL = bash -l
 
 -include ../Makefile.inc
 
-.PHONY: all build test release shell run start stop rm rmi default
-
-all: build
-
-checkout:
-	@git checkout $(BUILD_BRANCH)
+.PHONY: all build rebuild tag info test run launch shell launch-as-dep
+.PHONY: rmf-as-dep logs start kill stop rm rmi rmf hub-login hub-push hub-build
+.PHONY: kube-local kube-local-rm kube-deploy kube-rm
 
 build:
-	@docker build -t $(LOCAL_TAG) --force-rm .
-	@$(MAKE) tag
-	@$(MAKE) dclean
-
-tag:
-	@docker tag $(LOCAL_TAG) $(REMOTE_TAG)
+	@docker build -t $(DOCKER_IMAGE) --force-rm .
+	@-test $(LOCAL) && $(MAKE) dclean
 
 rebuild:
-	@docker build -t $(LOCAL_TAG) --force-rm --no-cache .
-	@$(MAKE) tag
-	@$(MAKE) dclean
+	@docker build -t $(DOCKER_IMAGE) --force-rm --no-cache .
+	@-test $(LOCAL) && $(MAKE) dclean
+
+tag:
+	@test $(ALT_TAG) && \
+		docker tag $(DOCKER_IMAGE) $(DOCKER_USER)/$(NAME):$(ALT_TAG)
+
+info:
+	@echo "NAME: 		$(NAME)"
+	@echo "BRANCH: 	$(BRANCH)"
+	@echo "TAG: 		$(TAG)"
+	@echo "DOCKER_USER: 	$(DOCKER_USER)"
+	@echo "DOCKER_IMAGE: 	$(DOCKER_IMAGE)"
 
 test:
-	@rspec ./tests/*.rb
-
-commit:
-	@git add -A .
-	@git commit
-
-push:
-	@git push origin master
-
-shell:
-	@docker exec -ti $(NAME) $(SHELL)
+	@tests/run
 
 run:
-	@docker run -it --rm --name $(NAME) $(LOCAL_TAG) $(SHELL)
+	@docker run -it --rm --name $(NAME) $(ENV_ARGS) $(DOCKER_IMAGE) $(CSHELL)
 
 launch:
-	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) $(LOCAL_TAG)
+	@docker run -d --name $(NAME) -h $(NAME).local \
+		$(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) $(DOCKER_IMAGE)
 
-launch-fast:
-	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) $(LOCAL_TAG)
-
-launch-net:
-	@docker run -d --name $(NAME) -h $(NAME).local $(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) --network=local --net-alias $(NAME).local $(LOCAL_TAG)
-
-launch-dev:
-	@$(MAKE) launch-net
-
-rmf-dev:
-	@$(MAKE) rmf
+shell:
+	@docker exec -ti $(NAME) $(CSHELL)
 
 launch-as-dep:
-	@$(MAKE) launch-net
+	@$(MAKE) launch
 
 rmf-as-dep:
 	@$(MAKE) rmf
 
-reloadxml:
-	@docker exec $(NAME) fs_cli -x 'reloadxml'
-
-http-clear-cache:
-	@docker exec $(NAME) fs_cli -x 'http_clear_cache' 
-
-erlang-status:
-	@docker exec $(NAME) fs_cli -x 'erlang status'
-
-sofia-status:
-	@docker exec $(NAME) fs_cli -x 'sofia status'
-
-create-network:
-	@docker network create -d bridge local
-
-proxies-up:
-	@cd ../docker-aptcacher-ng && make remote-persist
-
-shutdown-elegant:
-	@docker exec $(NAME) fs_cli -x 'fsctl shutdown elegant'
-
 logs:
-	@docker logs $(NAME)
-
-logsf:
 	@docker logs -f $(NAME)
 
 start:
 	@docker start $(NAME)
 
 kill:
-	@docker kill $(NAME)
+	@-docker kill $(NAME)
 
 stop:
-	@docker stop $(NAME)
+	@-docker stop $(NAME)
 
 rm:
-	@docker rm $(NAME)
+	@-docker rm $(NAME)
+
+rmi:
+	@-docker rmi $(DOCKER_IMAGE)
 
 rmf:
-	@docker rm -f $(NAME)
-	
-rmi:
-	@docker rmi $(LOCAL_TAG)
-	@docker rmi $(REMOTE_TAG)
+	@-docker rm --force $(NAME)
+
+hub-login:
+	@docker login -u $(DOCKER_USER) -p $(DOCKER_PASS)
+
+hub-push:
+	@docker push $(DOCKER_USER)/$(NAME)
+
+hub-build:
+	@curl -s -X POST -H "Content-Type: application/json" \
+		--data '{"docker_tag": "$(TAG)"}' \
+		https://registry.hub.docker.com/u/$(DOCKER_USER)/$(NAME)/trigger/$(BUILD_TOKEN)/
+
+kube-local:
+	@kubectl apply -f tests/manifests/local.yaml
+
+kube-local-rm:
+	@kubectl delete -f tests/manifests/local.yaml
 
 kube-deploy:
-	@kubectl create -f kubernetes/$(NAME)-deployment.yaml --record
+	@kubectl apply -f kubernetes
 
-kube-deploy-daemonset:
-	@kubectl create -f kubernetes/$(NAME)-daemonset.yaml
-
-kube-edit-daemonset:
-	@kubectl edit daemonset/$(NAME)
-
-kube-delete-daemonset:
-	@kubectl delete daemonset/$(NAME)
-
-kube-deploy-service:
-	@kubectl create -f kubernetes/$(NAME)-service.yaml
-
-kube-delete-service:
-	@kubectl delete svc $(NAME)
-
-kube-replace-service:
-	@kubectl replace -f kubernetes/$(NAME)-service.yaml
-
-kube-logsf:
-	@kubectl logs -f $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1)
-
-kube-logsft:
-	@kubectl logs -f --tail=25 $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1)
-
-kube-shell:
-	@kubectl exec -ti $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1) -- bash
-
-kube-erlang-status:
-	@kubectl exec $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1) -- fs_cli -x 'erlang status'
-
-kube-sofia-status:
-	@kubectl exec $(shell kubectl get po | grep $(NAME) | cut -d' ' -f1) -- fs_cli -x 'sofia status'
-
-kube-reloadxml:
-	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'reloadxml'
-
-kube-http-clear-cache:
-	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'http_clear_cache' 
-
-kube-shutdown-elegant:
-	@kubectl exec $(shell kubectl get po | grep $(NAME| cut -d' ' -f1) -- fs_cli -x 'fsctl shutdown elegant'
-
-default: build
+kube-rm:
+	@kubectl delete -f kubernetes

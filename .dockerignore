@@ -1,4 +1,8 @@
-Makefile
-README.md
 kubernetes/
-notes-*
+tests/
+.*/
+.*
+*.md
+*.rst
+*.env
+Makefile

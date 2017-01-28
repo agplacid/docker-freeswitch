@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: freeswitch-config
+  name: freeswitch
   labels:
     app: freeswitch
     project: valuphone
     environment: production
 data:
-  freeswitch.log-level: info
-  freeswitch.log-color: 'true'
-  freeswitch.rtp-start-port: 16384
-  freeswitch.rtp-end-port: 32768
+  freeswitch.log.level: info
+  freeswitch.log.color: 'true'
+  freeswitch.rtp.start-port: '16384'
+  freeswitch.rtp.end-port: '32768'
   freeswitch.disable-nat-detection: 'false'
   freeswitch.skip-sounds: 'false'
-  freeswitch.event-socket-listen-ip: 0.0.0.0
-  freeswitch.enable-tls: 'false'
+  freeswitch.event-socket.listen-ip: 0.0.0.0
+  freeswitch.tls.enable: 'false'
