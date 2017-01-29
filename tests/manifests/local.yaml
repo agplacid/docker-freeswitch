@@ -53,11 +53,16 @@ metadata:
     test: 'true'
     environment: testing
 spec:
+  clusterIP: None
   selector:
     app: freeswitch
   ports:
-  - name: freeswitch
-    port: 1
+  - name: event-socket
+    port: 8021
+  - name: mod-kazoo
+    port: 8031
+  - name: sip
+    port: 11000
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
