@@ -1,5 +1,6 @@
 kubernetes/
 tests/
+notes/
 .*/
 .*
 *.md
