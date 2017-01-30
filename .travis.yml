@@ -27,7 +27,7 @@ install: make build
 before_script:
 - make create-network
 - make launch
-- sleep 10
+- sleep 20
 
 script: make test
 
