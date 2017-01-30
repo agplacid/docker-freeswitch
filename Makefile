@@ -18,6 +18,7 @@ CSHELL = bash -l
 ENV_ARGS = --env-file default.env
 PORT_ARGS = -p "11000:10000" -p "11000:10000/udp" -p "16384-16484:16384-16484/udp" -p "8021:8021" -p "8031:8031"
 CAP_ARGS = --cap-add IPC_LOCK --cap-add SYS_NICE --cap-add SYS_RESOURCE --cap-add NET_ADMIN --cap-add NET_RAW --cap-add NET_BROADCAST
+NETWORK_ARGS = --network local
 
 -include ../Makefile.inc
 
@@ -48,16 +49,15 @@ test:
 	@tests/run
 
 create-network:
-	@-docker network ls | awk '{print $2}' | grep -q local || docker network \
-		create local
+	@-docker network create local
 
 run:
-	@docker run -it --rm --name $(NAME) $(ENV_ARGS) --network local \
+	@docker run -it --rm --name $(NAME) $(ENV_ARGS) $(NETWORK_ARGS) \
 		$(DOCKER_IMAGE) $(CSHELL)
 
 launch:
 	@docker run -d --name $(NAME) -h $(NAME).local \
-		$(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) --network local \
+		$(ENV_ARGS) $(VOLUME_ARGS) $(PORT_ARGS) $(CAP_ARGS) $(NETWORK_ARGS) \
 		$(DOCKER_IMAGE)
 
 shell:
