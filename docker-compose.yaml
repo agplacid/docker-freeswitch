@@ -1,0 +1,31 @@
+version: '2.1'
+services:
+  freeswitch:
+    container_name: freeswitch
+    hostname: freeswitch.local
+    build: .
+    image: callforamerica/freeswitch:${TAG:-latest}
+    env_file: default.env
+    ports:
+    - "11000:10000"
+    - "11000:10000/udp"
+    - "16384-16484:16384-16484/udp"
+    - "8021:8021"
+    - "8031:8031"
+    networks:
+      local:
+        aliases:
+        - freeswitch.local
+    volumes:
+    - data-freeswitch:/volumes/freeswitch
+    cap_add:
+    - IPC_LOCK
+    - NET_ADMIN
+    - NET_RAW
+    - NET_BROADCAST
+    - SYS_NICE
+    - SYS_RESOURCE
+volumes:
+  data-freeswitch:
+networks:
+  local:
