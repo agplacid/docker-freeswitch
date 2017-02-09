@@ -16,8 +16,6 @@ services:
       local:
         aliases:
         - freeswitch.local
-    volumes:
-    - data-freeswitch:/volumes/freeswitch
     cap_add:
     - IPC_LOCK
     - NET_ADMIN
@@ -25,7 +23,5 @@ services:
     - NET_BROADCAST
     - SYS_NICE
     - SYS_RESOURCE
-volumes:
-  data-freeswitch:
 networks:
   local:
