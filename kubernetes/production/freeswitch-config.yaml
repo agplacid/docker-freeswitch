@@ -7,6 +7,7 @@ metadata:
     project: valuphone
     environment: production
 data:
+  kube.search-domains.add: 'true'
   freeswitch.log.level: info
   freeswitch.log.color: 'true'
   freeswitch.rtp.start-port: '16384'

@@ -34,7 +34,7 @@ metadata:
     test: 'true'
     environment: testing
 data:
-  kube.hostname.fix: 'true'
+  kube.search-domains.add: 'true'
   freeswitch.log.level: info
   freeswitch.log.color: 'true'
   freeswitch.rtp.start-port: '16384'
@@ -96,6 +96,11 @@ spec:
             - SYS_NICE
             - SYS_RESOURCE
         env:
+        - name: KUBE_SEARCH_DOMAINS_ADD
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch
+              key: kube.search-domains.add
         - name: FREESWITCH_EVENT_SOCKET_PASSWORD
           valueFrom:
             secretKeyRef:

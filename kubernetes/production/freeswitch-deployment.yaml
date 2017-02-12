@@ -32,6 +32,11 @@ spec:
             - SYS_NICE
             - SYS_RESOURCE
         env:
+        - name: KUBE_SEARCH_DOMAINS_ADD
+          valueFrom:
+            configMapKeyRef:
+              name: freeswitch
+              key: kube.search-domains.add
         - name: FREESWITCH_EVENT_SOCKET_PASSWORD
           valueFrom:
             secretKeyRef:
