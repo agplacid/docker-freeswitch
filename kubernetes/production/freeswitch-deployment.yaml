@@ -37,21 +37,11 @@ spec:
             configMapKeyRef:
               name: freeswitch
               key: kube.search-domains.add
-        - name: FREESWITCH_EVENT_SOCKET_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: freeswitch-creds
-              key: freeswitch.event-socket.password
         - name: ERLANG_COOKIE
           valueFrom:
             secretKeyRef:
               name: erlang-cookie
               key: erlang.cookie
-        - name: FREESWITCH_EVENT_SOCKET_LISTEN_IP
-          valueFrom:
-            configMapKeyRef:
-              name: freeswitch
-              key: freeswitch.event-socket.listen-ip
         - name: FREESWITCH_LOG_LEVEL
           valueFrom:
             configMapKeyRef:

@@ -14,5 +14,4 @@ data:
   freeswitch.rtp.end-port: '32768'
   freeswitch.disable-nat-detection: 'false'
   freeswitch.skip-sounds: 'false'
-  freeswitch.event-socket.listen-ip: 0.0.0.0
   freeswitch.tls.enable: 'false'

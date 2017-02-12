@@ -1,4 +1,4 @@
-# freeswitch 1.6 for Kubernetes w/ manifests
+# Freeswitch 1.6 for Kubernetes w/ manifests
 
 [![Build Status](https://travis-ci.org/sip-li/docker-freeswitch.svg?branch=master)](https://travis-ci.org/sip-li/docker-freeswitch) [![Docker Pulls](https://img.shields.io/docker/pulls/callforamerica/freeswitch.svg)](https://store.docker.com/community/images/callforamerica/freeswitch)
 

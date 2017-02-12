@@ -20,12 +20,6 @@ set -e
 
 : readonly ${FREESWITCH_SEND_ALL_HEADERS:=true}
 
-# These settings determine event socket settings
-: readonly ${FREESWITCH_EVENT_SOCKET_LISTEN_IP:=127.0.0.1}
-# if set, will password protect fs_cli
-# if blank, will comment out the password tag
-: readonly ${FREESWITCH_EVENT_SOCKET_PASSWORD:=}
-
 # settings for sipcapture
 : readonly ${FREESWITCH_CAPTURE_SERVER:=false}
 : readonly ${FREESWITCH_CAPTURE_IP:=127.0.0.1}
@@ -64,56 +58,6 @@ tee /etc/freeswitch/autoload_configs/console.conf.xml <<EOF
         <map name="all" value="console,debug,info,notice,warning,err,crit,alert"/>
     </mappings>
 </configuration>
-EOF
-
-
-log::m-info "Writing event-socket ACL ..."
-tee /etc/freeswitch/autoload_configs/event-socket-acl.conf.xml <<EOF
-<configuration name="acl.conf" description="ACL for Event Socket Access">
-  <network-lists>
-    <list name="event-socket-allow" default="deny">
-      <node type="allow" cidr="127.0.0.0/8"/>
-      <node type="allow" cidr="::1/128"/>
-      <node type="allow" cidr="192.168.0.0/16"/>
-      <node type="allow" cidr="172.16.0.0/12"/>
-      <node type="allow" cidr="100.64.0.0/10"/>
-      <node type="allow" cidr="10.0.0.0/8"/>
-      <node type="allow" cidr="fe80::/10"/>
-    </list>
-  </network-lists>
-</configuration>
-EOF
-
-
-log::m-info "Rewriting event_socket config ..."
-tee /etc/freeswitch/autoload_configs/event_socket.conf.xml <<EOF
-<configuration name="event_socket.conf" description="Socket Client">
-    <settings>
-        <param name="nat-map" value="false"/>
-        <param name="listen-ip" value="$FREESWITCH_EVENT_SOCKET_LISTEN_IP"/>
-        <param name="listen-port" value="8021"/>
-        $(if [[ ! -z $FREESWITCH_EVENT_SOCKET_PASSWORD ]]; then
-            echo "<param name=\"password\" value=\"$FREESWITCH_EVENT_SOCKET_PASSWORD\"/>"
-          fi)
-        <param name="apply-inbound-acl" value="event-socket-allow"/>
-    </settings>
-</configuration>
-EOF
-
-
-log::m-info "Writing /etc/fs_cli.conf ..."
-tee /etc/fs_cli.conf <<EOF
-[default]
-;loglevel => $FREESWITCH_LOG_LEVEL
-host     => $(if [[ $FREESWITCH_EVENT_SOCKET_LISTEN_IP = '0.0.0.0' ]]; then
-                  echo '127.0.0.1'
-              else
-                  echo "$FREESWITCH_EVENT_SOCKET_LISTEN_IP"
-              fi)
-port     => 8021
-$(if [[ ! -z $FREESWITCH_EVENT_SOCKET_PASSWORD ]]; then
-    echo "password => $FREESWITCH_EVENT_SOCKET_PASSWORD"
-  fi)
 EOF
 
 
