@@ -138,7 +138,7 @@ pushd /etc/freeswitch
         log::m-info "Disabling broken or unnecessary modules ..."
         # these loggers are unused in docker and these codecs are now in core
         rm -f {logfile,syslog}.conf.xml
-        sed -i '/mod_syslog/d;/mod_logfile/d;/mod_speex/d;/mod_celt/d;' modules.conf.xml
+        sed -i '/mod_syslog/d;/mod_logfile/d;/mod_speex/d;/mod_celt/d;/mod_siren/d;/mod_ilbc/d' modules.conf.xml
 
         log::m-info "Fixing path in conference.conf.xml ..."
         sed -i '\|video-no-video-avatar|s|value="/etc/images\(.*\)"|value="$${images_dir}\1"|' conference.conf.xml

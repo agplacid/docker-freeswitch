@@ -5,7 +5,11 @@ services:
     hostname: freeswitch.local
     build: .
     image: callforamerica/freeswitch:${TAG:-latest}
-    env_file: default.env
+    environment:
+      FREESWITCH_DISABLE_NAT_DETECTION: 'false'
+      FREESWITCH_RTP_START_PORT: 16384
+      FREESWITCH_RTP_END_PORT: 16484
+      ERLANG_COOKIE: test-cookie
     ports:
     - "11000:10000"
     - "11000:10000/udp"
