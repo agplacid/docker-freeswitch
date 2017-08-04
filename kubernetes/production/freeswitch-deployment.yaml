@@ -46,7 +46,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: freeswitch
-              key: rabbitmq.log.level
+              key: freeswitch.log.level
         - name: FREESWITCH_LOG_COLOR
           valueFrom:
             configMapKeyRef:
