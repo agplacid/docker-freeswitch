@@ -10,14 +10,12 @@ set -e
 : readonly ${FREESWITCH_LOG_COLOR:=true}
 
 # RTP port range settings
-: declare -ir ${FREESWITCH_RTP_START_PORT:=16384}
-: declare -ir ${FREESWITCH_RTP_END_PORT:=32768}
+: declare -ir ${FREESWITCH_RTP_PORT_RANGE:=16384-32768}
 
 : readonly ${MOD_KAZOO_LISTEN_IP:=0.0.0.0}
 
 # if true, sets -nonat flag on freeswitch
 : readonly ${FREESWITCH_DISABLE_NAT_DETECTION:=true}
-
 : readonly ${FREESWITCH_SEND_ALL_HEADERS:=true}
 
 # settings for sipcapture
@@ -67,8 +65,8 @@ grep '"tls"' $_
 
 
 log::m-info "Setting RTP Port Range Min/Max on switch.conf.xml ..."
-sed -i "/rtp-start-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_START_PORT\"/" /etc/freeswitch/autoload_configs/switch.conf.xml
-sed -i "/rtp-end-port/s/value=\".*\"/value=\"$FREESWITCH_RTP_END_PORT\"/" $_
+sed -i "/rtp-start-port/s/value=\".*\"/value=\"${FREESWITCH_RTP_PORT_RANGE%-*}\"/" /etc/freeswitch/autoload_configs/switch.conf.xml
+sed -i "/rtp-end-port/s/value=\".*\"/value=\"${FREESWITCH_RTP_PORT_RANGE#*-}\"/" $_
 grep 'rtp-' $_
 
 
@@ -112,4 +110,4 @@ set -- ${CMD_ARGS[@]}
 log::m-info "Starting $APP ..."
 cd ~
     gosu $USER epmd -daemon
-    exec freeswitch "$@" 2>&1
+    exec freeswitch "$@"

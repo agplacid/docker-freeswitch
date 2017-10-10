@@ -4,7 +4,7 @@ metadata:
   name: freeswitch
   labels:
     app: freeswitch
-    project: valuphone
+    project: telephoneorg
     environment: production
 spec:
   replicas: 1
@@ -12,15 +12,24 @@ spec:
     metadata:
       labels:
         app: freeswitch
-        project: valuphone
+        project: telephoneorg
         environment: production
     spec:
       hostNetwork: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: media-server
+                operator: In
+                values:
+                - 'true'
       # nodeSelector:
-      #   kubernetes.io/hostname: saturn.valuphone.com
+      #   kubernetes.io/hostname: saturn.telephoneorg.com
       containers:
       - name: freeswitch
-        image: callforamerica/freeswitch
+        image: telephoneorg/freeswitch:latest
         imagePullPolicy: Always
         securityContext:
           capabilities:
@@ -32,15 +41,15 @@ spec:
             - SYS_NICE
             - SYS_RESOURCE
         env:
-        - name: KUBE_SEARCH_DOMAINS_ADD
+        - name: ERLANG_HOSTNAME
           valueFrom:
-            configMapKeyRef:
+            secretKeyRef:
               name: freeswitch
-              key: kube.search-domains.add
+              key: erlang.hostname
         - name: ERLANG_COOKIE
           valueFrom:
             secretKeyRef:
-              name: erlang-cookie
+              name: erlang
               key: erlang.cookie
         - name: FREESWITCH_LOG_LEVEL
           valueFrom:
@@ -52,16 +61,11 @@ spec:
             configMapKeyRef:
               name: freeswitch
               key: freeswitch.log.color
-        - name: FREESWITCH_RTP_START_PORT
+        - name: FREESWITCH_RTP_PORT_RANGE
           valueFrom:
             configMapKeyRef:
               name: freeswitch
-              key: freeswitch.rtp.start-port
-        - name: FREESWITCH_RTP_END_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: freeswitch
-              key: freeswitch.rtp.end-port
+              key: freeswitch.rtp.port-range
         - name: FREESWITCH_DISABLE_NAT_DETECTION
           valueFrom:
             configMapKeyRef:
@@ -73,8 +77,8 @@ spec:
               name: freeswitch
               key: freeswitch.tls.enable
         ports:
-        - name: event-socket
-          containerPort:  8021
+        # - name: event-socket
+        #   containerPort:  8021
         - name: mod-kazoo
           containerPort:  8031
         - name: sip

@@ -1,8 +1,17 @@
+addons:
+  apt:
+    packages:
+    - realpath
 language: python
+python:
+- "3.6"
 services: docker
 env:
   global:
-  - DOCKER_USER=callforamerica
+  - GITHUB_USER=joeblackwaslike
+  - GITHUB_ORG=telephoneorg
+  - DOCKER_USER=joeblackwaslike
+  - DOCKER_ORG=telephoneorg
   # DOCKER_PASS
   - secure: "dhRRoVyDz+C5hBk+qd4rE9nYTGKOq4yVaMhRDVJW24yE5gQWmG/3SP1IDWBI7SogsQOO9g0crhPfBrPU0Cyd60TnZ/nYmUJbNrUq6/PupzMh5tFyoqV+cfSCNAx375i3+JGos5hmQ0XHFtu3NZuOnNBeBQJpt8mI3nyybhts3rKFQQhjlN5QMM1+woaUlnWOKubP0dlcKIbrrMEhG+omZTWD8QzpFQUHEsUss460DhUlYOdzjJ9RcRVGSpdXJUASOsknXqTIu5x5uVs7lvx09kwkyf58Ry93SOKLBG0XG5W/L/B28SrChpRpSDIgMwwebuwEgL7Qd+OSyICOj9xKOI2Hkq2hMQ1tPukoVQPKzu4vtApJMOGxFCcUyesiKwuon8xgw2VN8jbI9EyCGQZ6ddlzH/l6Hxhd/4QCnxWKyVK0HyLTRavuUecbtZATaYLo8VrN3ga4i+riUnmWCbzvY8TbtWHvUSliyJgV7J9iAyxqBvYD6Tr7chDrmNrwxswdAle0URbkwtI7fUnVbJqqLejOfW2C6/vcpAkIn/HrRYiBgsjeVkIQzUmjSkmHg/ndSZ7kzBDDVI5Vf6XEcBVfy3k08nXTNlSQmFowaalAqshcXsrDkLkvR6CgY8GV4THEElXa58azIYRACuFuwOyVvMeYmOch6j7tzpfhzio5+Lk="
 notifications:
@@ -16,16 +25,13 @@ notifications:
     on_failure: always
 
 before_install:
-- pip install --upgrade docker-compose
 - source scripts/ci/environment.sh
+- pip install --upgrade docker-compose
+- pip install invoke
 
-install: docker-compose build
+install: inv dc.build
 
-before_script:
-- docker-compose up -d
-- sleep 30
-
-script: tests/run
+script: inv test
 
 after_success:
 - ci-tag-build

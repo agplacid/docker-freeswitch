@@ -1,6 +1,6 @@
-FROM callforamerica/debian
+FROM telephoneorg/debian:jessie
 
-MAINTAINER Joe Black <joeblack949@gmail.com>
+MAINTAINER Joe Black <me@joeblack.nyc>
 
 ARG     ERLANG_VERSION
 ARG     FREESWITCH_VERSION
@@ -21,7 +21,7 @@ ARG     FREESWITCH_LOAD_MODS
 
 ENV     ERLANG_VERSION ${ERLANG_VERSION:-19.2}
 ENV     FREESWITCH_VERSION ${FREESWITCH_VERSION:-1.6}
-ENV     KAZOO_CONFIGS_BRANCH ${KAZOO_CONFIGS_BRANCH:-master}
+ENV     KAZOO_CONFIGS_BRANCH ${KAZOO_CONFIGS_BRANCH:-4.2}
 ENV     FREESWITCH_INSTALL_MODS ${FREESWITCH_INSTALL_MODS:-commands,conference,console,dptools,dialplan-xml,enum,event-socket,flite,http-cache,local-stream,loopback,say-en,sndfile,sofia,tone-stream}
 ENV     FREESWITCH_INSTALL_CODECS ${FREESWITCH_INSTALL_CODECS:-amr,amrwb,g723-1,g729,h26x,opus,shout,silk,spandsp}
 ENV     FREESWITCH_INSTALL_LANGS ${FREESWITCH_INSTALL_LANGS:-en,es,ru}
@@ -43,8 +43,7 @@ COPY    build/freeswitch.limits.conf /etc/security/limits.d/
 COPY    entrypoint /
 
 ENV     FREESWITCH_LOG_LEVEL info
-ENV     FREESWITCH_RTP_START_PORT 16384
-ENV     FREESWITCH_RTP_END_PORT 32768
+ENV     FREESWITCH_RTP_PORT_RANGE 16384-32768
 ENV     FREESWITCH_DISABLE_NAT_DETECTION true
 ENV     FREESWITCH_ENABLE_TLS false
 ENV     FREESWITCH_CAPTURE_SERVER false
@@ -59,9 +58,9 @@ VOLUME  ["/volumes/ram/", \
 
 WORKDIR $HOME
 
-SHELL       ["/bin/bash"]
+SHELL       ["/bin/bash", "-lc"]
 HEALTHCHECK --interval=15s --timeout=5s \
-    CMD  fs_cli -x status | grep -q ^UP || exit 1
+    CMD fs_cli -x status | grep -q ^UP || exit 1
 
 ENTRYPOINT  ["/dumb-init", "--"]
 CMD         ["/entrypoint"]

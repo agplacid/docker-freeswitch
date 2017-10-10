@@ -1,20 +1,23 @@
-version: '2.1'
+version: '2.2'
 services:
   freeswitch:
     container_name: freeswitch
     hostname: freeswitch.local
-    build: .
-    image: callforamerica/freeswitch:${TAG:-latest}
+    build:
+      context: .
+      args:
+        FREESWITCH_VERSION: 1.6
+        KAZOO_CONFIGS_BRANCH: 4.2
+    image: telephoneorg/freeswitch:${TAG:-latest}
     environment:
       FREESWITCH_DISABLE_NAT_DETECTION: 'false'
-      FREESWITCH_RTP_START_PORT: 16384
-      FREESWITCH_RTP_END_PORT: 16484
+      FREESWITCH_RTP_PORT_RANGE: 16384-16484
       ERLANG_COOKIE: test-cookie
     ports:
     - "11000:10000"
     - "11000:10000/udp"
     - "16384-16484:16384-16484/udp"
-    - "8021:8021"
+    # - "8021:8021"
     - "8031:8031"
     networks:
       local:

@@ -4,14 +4,12 @@ metadata:
   name: freeswitch
   labels:
     app: freeswitch
-    project: valuphone
+    project: telephoneorg
     environment: production
 data:
-  kube.search-domains.add: 'true'
+  erlang.hostname: long
   freeswitch.log.level: info
   freeswitch.log.color: 'true'
-  freeswitch.rtp.start-port: '16384'
-  freeswitch.rtp.end-port: '32768'
+  freeswitch.rtp.port-range: '16384-32768'
   freeswitch.disable-nat-detection: 'false'
-  freeswitch.skip-sounds: 'false'
   freeswitch.tls.enable: 'false'

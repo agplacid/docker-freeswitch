@@ -7,19 +7,24 @@ eval $(detect-proxy enable)
 
 build::user::create $USER
 
+log::m-info "Installing dependencies ..."
+apt-get update -qq
+apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    git
+
+
 log::m-info "Installing $APP repo ..."
 build::apt::add-key 434975BD900CCBE4F7EE1B1ED208507CA14F4FCA
-echo 'deb http://packages.erlang-solutions.com/debian jessie contrib' > \
+echo 'deb https://packages.erlang-solutions.com/debian jessie contrib' > \
     /etc/apt/sources.list.d/erlang.list
 build::apt::add-key 79CD0F88
 echo 'deb http://files.freeswitch.org/repo/deb/freeswitch-1.6/ jessie main' > \
     /etc/apt/sources.list.d/freeswitch.list
 
-apt-get -q update
-
-
-log::m-info "Installing essentials ..."
-apt-get install -qq -y curl ca-certificates git
+apt-get update -qq
 
 
 log::m-info "Installing erlang & $APP ..."
@@ -82,8 +87,7 @@ rm -rf /etc/freeswitch
 mkdir -p /tmp/configs
 pushd $_
     git clone -b $KAZOO_CONFIGS_BRANCH --single-branch --depth 1 \
-        https://github.com/2600hz/kazoo-configs .
-
+        https://github.com/2600hz/kazoo-configs-freeswitch .
     mv freeswitch /etc/
     popd && rm -rf $OLDPWD
 
