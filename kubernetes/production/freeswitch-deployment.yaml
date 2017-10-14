@@ -25,11 +25,9 @@ spec:
                 operator: In
                 values:
                 - 'true'
-      # nodeSelector:
-      #   kubernetes.io/hostname: saturn.telephoneorg.com
       containers:
       - name: freeswitch
-        image: telephoneorg/freeswitch:latest
+        image: telephoneorg/freeswitch
         imagePullPolicy: Always
         securityContext:
           capabilities:
@@ -77,8 +75,6 @@ spec:
               name: freeswitch
               key: freeswitch.tls.enable
         ports:
-        # - name: event-socket
-        #   containerPort:  8021
         - name: mod-kazoo
           containerPort:  8031
         - name: sip
@@ -113,3 +109,4 @@ spec:
         emptyDir:
           medium: Memory
       restartPolicy: Always
+      dnsPolicy: ClusterFirstWithHostNet
