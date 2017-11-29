@@ -7,8 +7,8 @@ services:
       context: .
       args:
         FREESWITCH_VERSION: 1.6
-        KAZOO_CONFIGS_BRANCH: 4.2
-    image: telephoneorg/freeswitch:${TAG:-latest}
+        KAZOO_CONFIGS_BRANCH: 4.1
+    image: telephoneorg/freeswitch:${DOCKER_TAG:-latest}
     environment:
       FREESWITCH_DISABLE_NAT_DETECTION: 'false'
       FREESWITCH_RTP_PORT_RANGE: 16384-16484
@@ -17,7 +17,6 @@ services:
     - "11000:10000"
     - "11000:10000/udp"
     - "16384-16484:16384-16484/udp"
-    # - "8021:8021"
     - "8031:8031"
     networks:
       local:

@@ -13,8 +13,6 @@ spec:
     project: telephoneorg
     environment: production
   ports:
-  # - name: event-socket
-  #   port: 8021
   - name: mod-kazoo
     port: 8031
   - name: sip

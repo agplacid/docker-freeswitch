@@ -27,6 +27,6 @@ ns.configure(dict(
         shell='bash'
     ),
     kube=dict(
-        environment='testing'
+        environment='production'
     )
 ))

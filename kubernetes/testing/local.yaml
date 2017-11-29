@@ -9,7 +9,7 @@ metadata:
     environment: testing
 type: Opaque
 data:
-  erlang.cookie: WlgyZVA4Umo4cnVmUjVJbjNnWGV1akhYNllseEREbnRyd3ZROE5kcGd3OXFOQjZ5UFhPUWhxNFF4bEc0WnZaQQ==
+  cookie: WlgyZVA4Umo4cnVmUjVJbjNnWGV1akhYNllseEREbnRyd3ZROE5kcGd3OXFOQjZ5UFhPUWhxNFF4bEc0WnZaQQ==
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -39,8 +39,6 @@ spec:
   selector:
     app: freeswitch
   ports:
-  # - name: event-socket
-  #   port: 8021
   - name: mod-kazoo
     port: 8031
   - name: sip
@@ -56,6 +54,12 @@ metadata:
     environment: testing
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5
   template:
     metadata:
       labels:
@@ -82,7 +86,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: erlang
-              key: erlang.cookie
+              key: cookie
         - name: FREESWITCH_LOG_LEVEL
           valueFrom:
             configMapKeyRef:
@@ -109,8 +113,6 @@ spec:
               name: freeswitch
               key: freeswitch.tls.enable
         ports:
-        # - name: event-socket
-        #   containerPort:  8021
         - name: mod-kazoo
           containerPort:  8031
         - name: sip

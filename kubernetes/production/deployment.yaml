@@ -8,6 +8,12 @@ metadata:
     environment: production
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5
   template:
     metadata:
       labels:
@@ -15,6 +21,7 @@ spec:
         project: telephoneorg
         environment: production
     spec:
+      terminationGracePeriodSeconds: 60
       hostNetwork: true
       affinity:
         nodeAffinity:
@@ -41,14 +48,14 @@ spec:
         env:
         - name: ERLANG_HOSTNAME
           valueFrom:
-            secretKeyRef:
+            configMapKeyRef:
               name: freeswitch
               key: erlang.hostname
         - name: ERLANG_COOKIE
           valueFrom:
             secretKeyRef:
               name: erlang
-              key: erlang.cookie
+              key: cookie
         - name: FREESWITCH_LOG_LEVEL
           valueFrom:
             configMapKeyRef:
